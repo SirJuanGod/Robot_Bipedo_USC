@@ -1,0 +1,14 @@
+{
+    "configuration": "default",
+    "documentId": "09d76bfb5b91e3e3eb703810",
+    "documentMicroversion": "fed23f5982fd669c546fab52",
+    "documentVersion": "567833ee78e8e7f6474135a7",
+    "elementId": "d181efde3910d20cea844c99",
+    "fullConfiguration": "default",
+    "id": "MP29habABFXfX5Eum",
+    "isStandardContent": false,
+    "name": "Servo_R <4>",
+    "partId": "JHD",
+    "suppressed": false,
+    "type": "Part"
+}

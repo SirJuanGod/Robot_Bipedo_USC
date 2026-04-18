@@ -1,0 +1,230 @@
+<?xml version="1.0" ?>
+<!-- Generated using onshape-to-robot -->
+<!-- Onshape https://cad.onshape.com/documents/c4b361cf4ba327d1f57e882d/w/2ee79dd7520cc42214465bb5/e/219e2712517a5651e6a46ab2 -->
+<mujoco model="e:\Robot_Bipedo_USC\model">
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+  <default>
+    <default class="e:\Robot_Bipedo_USC\model">
+      <joint frictionloss="0.1" armature="0.005"/>
+      <position kp="50" dampratio="1"/>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <geom group="3"/>
+      </default>
+    </default>
+  </default>
+  <worldbody>
+    <!-- Link cadera -->
+    <body name="cadera" pos="0 0 0" quat="1 0 0 0" childclass="e:\Robot_Bipedo_USC\model">
+      <freejoint name="cadera_freejoint"/>
+      <inertial pos="0.00168352 0.000241502 0.0265788" mass="1.22129" fullinertia="0.00357703 0.00199576 0.00183841 4.26034e-07 -6.20582e-05 1.12763e-05"/>
+      <!-- Part conector_bh -->
+      <geom type="mesh" class="visual" pos="-0.0110093 -0.0294144 0.0205215" quat="0.707107 0 0 0.707107" mesh="conector_bh" material="conector_bh_material"/>
+      <geom type="mesh" class="collision" pos="-0.0110093 -0.0294144 0.0205215" quat="0.707107 0 0 0.707107" mesh="conector_bh" material="conector_bh_material"/>
+      <!-- Part conector_bh_2 -->
+      <geom type="mesh" class="visual" pos="0.0129907 0.0294144 0.0205215" quat="0.707107 0 -0 -0.707107" mesh="conector_bh" material="conector_bh_material"/>
+      <geom type="mesh" class="collision" pos="0.0129907 0.0294144 0.0205215" quat="0.707107 0 -0 -0.707107" mesh="conector_bh" material="conector_bh_material"/>
+      <!-- Part servo_l -->
+      <geom type="mesh" class="visual" pos="0.0206807 0.052354 -0.0224757" quat="0.5 -0.5 -0.5 0.5" mesh="servo_l" material="servo_l_material"/>
+      <geom type="mesh" class="collision" pos="0.0206807 0.052354 -0.0224757" quat="0.5 -0.5 -0.5 0.5" mesh="servo_l" material="servo_l_material"/>
+      <!-- Part servo_r -->
+      <geom type="mesh" class="visual" pos="0.0206807 -0.051354 -0.002776" quat="0.5 0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+      <geom type="mesh" class="collision" pos="0.0206807 -0.051354 -0.002776" quat="0.5 0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+      <!-- Part pecho -->
+      <geom type="mesh" class="visual" pos="-0.0493026 -0.000778222 0.084" quat="0.5 0.5 0.5 0.5" mesh="pecho" material="pecho_material"/>
+      <geom type="mesh" class="collision" pos="-0.0493026 -0.000778222 0.084" quat="0.5 0.5 0.5 0.5" mesh="pecho" material="pecho_material"/>
+      <!-- Part cadera -->
+      <geom type="mesh" class="visual" pos="0.0218907 -0.045 0" quat="0 0 -0 1" mesh="cadera" material="cadera_material"/>
+      <geom type="mesh" class="collision" pos="0.0218907 -0.045 0" quat="0 0 -0 1" mesh="cadera" material="cadera_material"/>
+      <!-- Part servo_l_2 -->
+      <geom type="mesh" class="visual" pos="-0.007748 0.0592 0.04431" quat="0.707107 -0 -0 0.707107" mesh="servo_l" material="servo_l_material"/>
+      <geom type="mesh" class="collision" pos="-0.007748 0.0592 0.04431" quat="0.707107 -0 -0 0.707107" mesh="servo_l" material="servo_l_material"/>
+      <!-- Part servo_r_2 -->
+      <geom type="mesh" class="visual" pos="0.0119517 -0.0592 0.04431" quat="0.707107 -0 0 -0.707107" mesh="servo_r" material="servo_r_material"/>
+      <geom type="mesh" class="collision" pos="0.0119517 -0.0592 0.04431" quat="0.707107 -0 0 -0.707107" mesh="servo_r" material="servo_r_material"/>
+      <!-- Link rodilla -->
+      <body name="rodilla" pos="-0.0105193 -0.056354 -0.012626" quat="0.707105 -0.707105 0.00164428 0.00164428">
+        <!-- Joint from cadera to rodilla -->
+        <joint axis="0 0 1" name="PD" type="hinge" range="-1.5754470561451674 1.5661455974446257"/>
+        <inertial pos="-0 0.0386707 0.0263" mass="0.0235968" fullinertia="2.73331e-05 1.41517e-05 1.54001e-05 0 -0 0"/>
+        <!-- Part rodilla -->
+        <geom type="mesh" class="visual" pos="-0.012 0.096 0.0538" quat="0.707107 0.707107 0 -0" mesh="rodilla" material="rodilla_material"/>
+        <geom type="mesh" class="collision" pos="-0.012 0.096 0.0538" quat="0.707107 0.707107 0 -0" mesh="rodilla" material="rodilla_material"/>
+        <!-- Link pierna_d -->
+        <body name="pierna_d" pos="0 0.084 0" quat="0 0.00232536 0.999997 -0">
+          <!-- Joint from rodilla to pierna_d -->
+          <joint axis="0 0 1" name="RD" type="hinge" range="-1.5754470561451708 1.5661455974446223"/>
+          <inertial pos="-0.000810306 0.0167977 -0.0249161" mass="0.587055" fullinertia="0.000629167 0.000113758 0.000561872 -3.64571e-07 -1.98348e-06 -3.96143e-06"/>
+          <!-- Part servo_l_3 -->
+          <geom type="mesh" class="visual" pos="0.00985 0.0238 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l" material="servo_l_material"/>
+          <geom type="mesh" class="collision" pos="0.00985 0.0238 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l" material="servo_l_material"/>
+          <!-- Part servo_l_4 -->
+          <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l" material="servo_l_material"/>
+          <geom type="mesh" class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l" material="servo_l_material"/>
+          <!-- Link pierna -->
+          <body name="pierna" pos="-0 0.055 0" quat="0 1 -0 -0">
+            <!-- Joint from pierna_d to pierna -->
+            <joint axis="0 0 1" name="TD" type="hinge" range="-1.5707963267948966 1.5707963267948966"/>
+            <inertial pos="-0 -0.0316057 0.0260561" mass="0.0211042" fullinertia="1.32498e-05 1.21762e-05 1.30198e-05 -0 0 -6.5907e-08"/>
+            <!-- Part pierna -->
+            <geom type="mesh" class="visual" pos="0.0275 -0.075 0.0138" quat="0.5 -0.5 -0.5 -0.5" mesh="pierna" material="pierna_material"/>
+            <geom type="mesh" class="collision" pos="0.0275 -0.075 0.0138" quat="0.5 -0.5 -0.5 -0.5" mesh="pierna" material="pierna_material"/>
+            <!-- Link servo_r -->
+            <body name="servo_r" pos="-0.0263 -0.063 0.0258" quat="0.5 0.5 -0.5 -0.5">
+              <!-- Joint from pierna to servo_r -->
+              <joint axis="0 0 1" name="FD" type="hinge" range="-1.5707963267947758 1.5707963267950174"/>
+              <inertial pos="0.0018217 -0.010767 -0.0236511" mass="0.319475" fullinertia="0.000139188 9.86612e-05 7.1147e-05 4.2698e-07 -3.62545e-06 -1.68389e-06"/>
+              <!-- Part pie -->
+              <geom type="mesh" class="visual" pos="0.012626 0.01999 0.052146" quat="0 0.707107 -0.707107 -0" mesh="pie" material="pie_material"/>
+              <geom type="mesh" class="collision" pos="0.012626 0.01999 0.052146" quat="0 0.707107 -0.707107 -0" mesh="pie" material="pie_material"/>
+              <!-- Part servo_r_3 -->
+              <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+              <geom type="mesh" class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Link rodilla_2 -->
+      <body name="rodilla_2" pos="-0.0105193 0.057354 -0.0126257" quat="0.707105 0.707105 0.00164428 -0.00164428">
+        <!-- Joint from cadera to rodilla_2 -->
+        <joint axis="0 0 1" name="PI" type="hinge" range="-1.5661455974446334 1.5754470561451597"/>
+        <inertial pos="-0 -0.0386707 0.0263" mass="0.0235968" fullinertia="2.73331e-05 1.41517e-05 1.54001e-05 -0 0 0"/>
+        <!-- Part rodilla_2 -->
+        <geom type="mesh" class="visual" pos="-0.012 -0.096 -0.0012" quat="0.707107 -0.707107 -0 0" mesh="rodilla" material="rodilla_material"/>
+        <geom type="mesh" class="collision" pos="-0.012 -0.096 -0.0012" quat="0.707107 -0.707107 -0 0" mesh="rodilla" material="rodilla_material"/>
+        <!-- Link pierna_i -->
+        <body name="pierna_i" pos="0 -0.084 0" quat="0 -0.999997 -0.00232536 0">
+          <!-- Joint from rodilla_2 to pierna_i -->
+          <joint axis="0 0 1" name="RI" type="hinge" range="-1.566145597444632 1.575447056145161"/>
+          <inertial pos="0.000810519 0.0167987 -0.024916" mass="0.587014" fullinertia="0.000629126 0.000113755 0.000561829 3.73935e-07 1.98639e-06 -3.96825e-06"/>
+          <!-- Part servo_r_4 -->
+          <geom type="mesh" class="visual" pos="0.00985 0.0238 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+          <geom type="mesh" class="collision" pos="0.00985 0.0238 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+          <!-- Part servo_r_5 -->
+          <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+          <geom type="mesh" class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+          <!-- Link pierna_2 -->
+          <body name="pierna_2" pos="0 0.055 0" quat="0 0 1 0">
+            <!-- Joint from pierna_i to pierna_2 -->
+            <joint axis="0 0 1" name="TI" type="hinge" range="-1.5707963267948972 1.570796326794896"/>
+            <inertial pos="-0 0.0316057 0.0265439" mass="0.0211042" fullinertia="1.32498e-05 1.21762e-05 1.30198e-05 0 -0 -6.5907e-08"/>
+            <!-- Part pierna_2 -->
+            <geom type="mesh" class="visual" pos="0.0275 0.075 0.0388" quat="0.5 0.5 0.5 -0.5" mesh="pierna" material="pierna_material"/>
+            <geom type="mesh" class="collision" pos="0.0275 0.075 0.0388" quat="0.5 0.5 0.5 -0.5" mesh="pierna" material="pierna_material"/>
+            <!-- Link servo_l -->
+            <body name="servo_l" pos="-0.0263 0.063 0.0268" quat="0.5 0.5 -0.5 -0.5">
+              <!-- Joint from pierna_2 to servo_l -->
+              <joint axis="0 0 1" name="FI" type="hinge" range="-1.5707963267947762 1.570796326795017"/>
+              <inertial pos="-0.00182142 -0.0107679 -0.0234481" mass="0.319495" fullinertia="0.000141199 0.000100668 7.11529e-05 -4.22012e-07 4.36887e-06 -1.63266e-06"/>
+              <!-- Part pie_2 -->
+              <geom type="mesh" class="visual" pos="-0.0126257 -0.04301 0.054646" quat="0 0.707107 0.707107 0" mesh="pie" material="pie_material"/>
+              <geom type="mesh" class="collision" pos="-0.0126257 -0.04301 0.054646" quat="0 0.707107 0.707107 0" mesh="pie" material="pie_material"/>
+              <!-- Part servo_l_5 -->
+              <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l" material="servo_l_material"/>
+              <geom type="mesh" class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l" material="servo_l_material"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Link hombro -->
+      <body name="hombro" pos="0.00210173 -0.0642 0.07551" quat="0.5 -0.5 -0.5 -0.5">
+        <!-- Joint from cadera to hombro -->
+        <joint axis="0 0 1" name="HD" type="hinge" range="-1.5707963267948861 1.570796326794907"/>
+        <inertial pos="-0.00741114 0.000596761 -0.0111482" mass="0.0131499" fullinertia="8.76235e-06 3.70945e-06 8.32173e-06 4.024e-08 -1.19337e-06 6.8747e-08"/>
+        <!-- Part hombro -->
+        <geom type="mesh" class="visual" pos="-0.0257453 0.0275 -0.0411441" quat="0.955753 0 0.294171 -0" mesh="hombro" material="hombro_material"/>
+        <geom type="mesh" class="collision" pos="-0.0257453 0.0275 -0.0411441" quat="0.955753 0 0.294171 -0" mesh="hombro" material="hombro_material"/>
+        <!-- Link servo_l_2 -->
+        <body name="servo_l_2" pos="-0.0202432 0.02625 -0.0297694" quat="0.208011 -0.208011 -0.675819 -0.675819">
+          <!-- Joint from hombro to servo_l_2 -->
+          <joint axis="0 0 1" name="BD" type="hinge" range="-1.5707963267948963 1.5707963267948968"/>
+          <inertial pos="-0.000719127 -0.0131863 -0.0250929" mass="0.309442" fullinertia="0.000143192 6.53812e-05 0.000103706 2.4694e-06 -8.99726e-07 -4.48747e-06"/>
+          <!-- Part conector_bh_3 -->
+          <geom type="mesh" class="visual" pos="0.000588743 -0.0549885 -0.016354" quat="0 0 0.707107 0.707107" mesh="conector_bh" material="conector_bh_material"/>
+          <geom type="mesh" class="collision" pos="0.000588743 -0.0549885 -0.016354" quat="0 0 0.707107 0.707107" mesh="conector_bh" material="conector_bh_material"/>
+          <!-- Part servo_l_6 -->
+          <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l" material="servo_l_material"/>
+          <geom type="mesh" class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l" material="servo_l_material"/>
+          <!-- Part brazo -->
+          <geom type="mesh" class="visual" pos="-0.0127431 -0.112852 -0.000354045" quat="0 0 0.707107 0.707107" mesh="brazo" material="brazo_material"/>
+          <geom type="mesh" class="collision" pos="-0.0127431 -0.112852 -0.000354045" quat="0 0 0.707107 0.707107" mesh="brazo" material="brazo_material"/>
+        </body>
+      </body>
+      <!-- Link hombro_2 -->
+      <body name="hombro_2" pos="0.002102 0.0642 0.07551" quat="0.5 0.5 -0.5 0.5">
+        <!-- Joint from cadera to hombro_2 -->
+        <joint axis="0 0 1" name="HI" type="hinge" range="-1.5707963267948963 1.5707963267948968"/>
+        <inertial pos="-0.00741114 0.000596761 -0.0111482" mass="0.0131499" fullinertia="8.76235e-06 3.70945e-06 8.32173e-06 4.024e-08 -1.19337e-06 6.8747e-08"/>
+        <!-- Part hombro_2 -->
+        <geom type="mesh" class="visual" pos="-0.0257453 0.0275 -0.0411441" quat="0.955753 -0 0.294171 0" mesh="hombro" material="hombro_material"/>
+        <geom type="mesh" class="collision" pos="-0.0257453 0.0275 -0.0411441" quat="0.955753 -0 0.294171 0" mesh="hombro" material="hombro_material"/>
+        <!-- Link servo_r_2 -->
+        <body name="servo_r_2" pos="-0.0202432 -0.02635 -0.0297694" quat="0.675819 0.675819 0.208011 -0.208011">
+          <!-- Joint from hombro_2 to servo_r_2 -->
+          <joint axis="0 0 1" name="BI" type="hinge" range="-1.5707963267948963 1.5707963267948968"/>
+          <inertial pos="0.000871868 -0.0131856 -0.0250928" mass="0.309422" fullinertia="0.000143188 6.51067e-05 0.000103428 1.10704e-07 1.0551e-06 -4.49094e-06"/>
+          <!-- Part servo_r_6 -->
+          <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+          <geom type="mesh" class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_r" material="servo_r_material"/>
+          <!-- Part conector_bh_4 -->
+          <geom type="mesh" class="visual" pos="-0.000588427 -0.0549885 -0.040354" quat="0.707107 -0.707107 -0 0" mesh="conector_bh" material="conector_bh_material"/>
+          <geom type="mesh" class="collision" pos="-0.000588427 -0.0549885 -0.040354" quat="0.707107 -0.707107 -0 0" mesh="conector_bh" material="conector_bh_material"/>
+          <!-- Part brazo_2 -->
+          <geom type="mesh" class="visual" pos="0.0169003 -0.112852 -0.056354" quat="0.707107 -0.707107 0 0" mesh="brazo" material="brazo_material"/>
+          <geom type="mesh" class="collision" pos="0.0169003 -0.112852 -0.056354" quat="0.707107 -0.707107 0 0" mesh="brazo" material="brazo_material"/>
+        </body>
+      </body>
+      <!-- Link servo_l_3 -->
+      <body name="servo_l_3" pos="-0.0108393 0 0.084" quat="0 0.707107 -0.707107 -0">
+        <!-- Joint from cadera to servo_l_3 -->
+        <joint axis="0 0 1" name="HEAD" type="hinge" range="-1.5707963267948988 1.5707963267948943"/>
+        <inertial pos="-1.38699e-06 -0.0105666 -0.0236383" mass="0.257655" fullinertia="7.26738e-05 4.36012e-05 4.55621e-05 7.95e-10 -5.106e-09 -1.74525e-06"/>
+        <!-- Part servo_l_7 -->
+        <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l__2" material="servo_l__2_material"/>
+        <geom type="mesh" class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="servo_l__2" material="servo_l__2_material"/>
+      </body>
+    </body>
+  </worldbody>
+  <asset>
+    <mesh file="servo_l__2.stl"/>
+    <mesh file="hombro.stl"/>
+    <mesh file="conector_bh.stl"/>
+    <mesh file="pecho.stl"/>
+    <mesh file="rodilla.stl"/>
+    <mesh file="pierna.stl"/>
+    <mesh file="pie.stl"/>
+    <mesh file="servo_r.stl"/>
+    <mesh file="servo_l.stl"/>
+    <mesh file="cadera.stl"/>
+    <mesh file="brazo.stl"/>
+    <material name="conector_bh_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="servo_l_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="servo_r_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="pecho_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="cadera_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="rodilla_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="pierna_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="pie_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="hombro_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="brazo_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="servo_l__2_material" rgba="0.615686 0.811765 0.929412 1"/>
+  </asset>
+  <actuator>
+    <position class="e:\Robot_Bipedo_USC\model" name="PD" joint="PD" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="RD" joint="RD" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="TD" joint="TD" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="FD" joint="FD" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="PI" joint="PI" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="RI" joint="RI" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="TI" joint="TI" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="FI" joint="FI" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="HD" joint="HD" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="BD" joint="BD" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="HI" joint="HI" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="BI" joint="BI" inheritrange="1"/>
+    <position class="e:\Robot_Bipedo_USC\model" name="HEAD" joint="HEAD" inheritrange="1"/>
+  </actuator>
+  <equality/>
+</mujoco>
