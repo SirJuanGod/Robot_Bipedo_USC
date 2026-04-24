@@ -33,7 +33,6 @@ parser.add_argument("-d", "--device", type=str, default="cpu")
 parser.add_argument("-e", "--exp_name", type=str, default=EXPERIMENT_NAME)
 args = parser.parse_args()
 
-
 def training_cfg(exp_name: str, max_iterations: int):
     return {
         "algorithm": {
@@ -50,15 +49,28 @@ def training_cfg(exp_name: str, max_iterations: int):
             "schedule": "adaptive",
             "use_clipped_value_loss": True,
             "value_loss_coef": 1.0,
+            "normalize_advantage_per_mini_batch": False,
+            "optimizer": "adam",
+            "rnd_cfg": None,
+            "symmetry_cfg": None,
         },
-        "init_member_classes": {},
-        "policy": {
+        "actor": {
+            "class_name": "MLPModel",
+            "hidden_dims": [512, 256, 128],
             "activation": "elu",
-            "actor_hidden_dims": [512, 256, 128],
-            "critic_hidden_dims": [512, 256, 128],
-            "init_noise_std": 1.0,
-            "class_name": "ActorCritic",
+            "obs_normalization": False,
+            "distribution_cfg": {
+                "class_name": "GaussianDistribution",
+                "init_std": 1.0,
+            },
         },
+        "critic": {
+            "class_name": "MLPModel",
+            "hidden_dims": [512, 256, 128],
+            "activation": "elu",
+            "obs_normalization": False,
+        },
+        "multi_gpu": None,
         "runner": {
             "checkpoint": -1,
             "experiment_name": exp_name,
@@ -75,9 +87,9 @@ def training_cfg(exp_name: str, max_iterations: int):
         "num_steps_per_env": 24,
         "save_interval": 100,
         "empirical_normalization": None,
-        "obs_groups": {"policy": ["policy"], "critic": ["policy"]},
+        "obs_groups": {"actor": ["policy"], "critic": ["policy"]},
+        "torch_compile_mode": None,
     }
-
 
 def main():
     # Initialize Genesis
@@ -119,6 +131,7 @@ def main():
     env = RslRlWrapper(env)
     env.build()
     env.reset()
+    env.cfg = {}
 
     # Train
     print("💪 Training model...")
