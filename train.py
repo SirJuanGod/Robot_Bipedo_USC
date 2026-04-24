@@ -5,10 +5,6 @@ import shutil
 import pickle
 import argparse
 from importlib import metadata
-
-import taichi as ti
-ti.init(arch=ti.vulkan)
-
 import genesis as gs
 
 from genesis_forge.wrappers import (
