@@ -76,7 +76,7 @@ class BipedEnv(ManagedEnvironment):
 
         # Camera, for headless video recording
         self.camera = self.scene.add_camera(
-            pos=(2.5, 0.0, 2.5),
+            pos=(0.8, 0.0, 0.5),
             lookat=(0.0, 0.0, 0.0),
             res=(1280, 720),
             fov=40,
