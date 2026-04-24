@@ -153,6 +153,21 @@ class BipedEnv(ManagedEnvironment):
             self,
             link_names=["cadera"],
         )
+        self.h_contact_manager = ContactManager(
+            self,
+            link_names=["hombro","hombro_2"]
+        )
+
+        self.foot_r_contact_manager = ContactManager(
+            self,
+            link_names=["servo_r"]
+        )
+
+        self.foot_l_contact_manager = ContactManager(
+            self,
+            link_names=["servo_l"]
+        )
+
 
         ##
         # Rewards
@@ -192,13 +207,65 @@ class BipedEnv(ManagedEnvironment):
 
                 # === Suavidad de movimiento ===
                 "action_rate": {
-                    "weight": -0.01,        # Penaliza cambios bruscos de acción
+                    "weight": -0.1,        # Penaliza cambios bruscos de acción
                     "fn": rewards.action_rate_l2,
                 },
                 "similar_to_default": {
                     "weight": -0.1,         # Aumentado — mantener postura base
                     "fn": rewards.dof_similar_to_default,
                     "params": {"action_manager": self.action_manager},
+                },
+                "foot_contact": {
+                    "weight": 0.5,
+                    "fn": lambda env: (
+                        (self.foot_r_contact.get_contact_forces().norm(dim=-1) > 0.1).float()
+                        + (self.foot_l_contact.get_contact_forces().norm(dim=-1) > 0.1).float()
+                    ).clamp(max=1.0),   # hasta 1.0 si al menos un pie toca
+                },
+                "flat_foot": {
+                    "weight": -0.3,
+                    "fn": lambda env: (
+                        self.robot.get_dofs_position(
+                            dof_names=["FD", "FI"]
+                        ) ** 2
+                    ).sum(dim=-1),
+                },
+                "alternating_feet": {
+                    "weight": 0.4,
+                    "fn": lambda env: (
+                        # XOR suave: recompensa cuando los estados de contacto son OPUESTOS
+                        # derecho toca, izquierdo no — o viceversa
+                        (
+                            (self.foot_r_contact.get_contact_forces().norm(dim=-1) > 0.1).float()
+                            - (self.foot_l_contact.get_contact_forces().norm(dim=-1) > 0.1).float()
+                        ).abs()  # 1.0 si alternan, 0.0 si están iguales
+                    ),
+                },
+                "leg_asymmetry": {
+                    "weight": 0.2,
+                    "fn": lambda env: (
+                        # Si PD ≈ PI y RD ≈ RI, las piernas se mueven igual -> penaliza
+                        (
+                            self.robot.get_dofs_position(dof_names=["PD"])
+                            - self.robot.get_dofs_position(dof_names=["PI"])
+                        ) ** 2
+                        +
+                        (
+                            self.robot.get_dofs_position(dof_names=["RD"])
+                            - self.robot.get_dofs_position(dof_names=["RI"])
+                        ) ** 2
+                    ).sum(dim=-1) * -1,  # negativo: penaliza cuando son iguales (diff≈0)
+                },
+                "both_feet_used": {
+                    "weight": 0.3,
+                    "fn": lambda env: (
+                        (self.foot_r_contact.get_contact_forces().norm(dim=-1) > 0.1).float()
+                        * (self.foot_l_contact.get_contact_forces().norm(dim=-1) > 0.1).float()
+                        * 0.0   # penaliza el doble apoyo prolongado
+                        +
+                        (self.foot_r_contact.get_contact_forces().norm(dim=-1) > 0.1).float()
+                        + (self.foot_l_contact.get_contact_forces().norm(dim=-1) > 0.1).float()
+                    ).clamp(min=0.3, max=1.0),  # al menos 0.3 si ambos se usan
                 },
             },
         )
@@ -218,7 +285,13 @@ class BipedEnv(ManagedEnvironment):
                 "torso_contact": {
                     "fn": terminations.contact_force,
                     "params": {
-                        "contact_manager": self.torso_contact_manager,
+                        "contact_manager": self.torso_contact_manager
+                    },
+                },
+                "torso_contact": {
+                    "fn": terminations.contact_force,
+                    "params": {
+                        "contact_manager": self.h_contact_manager
                     },
                 },
             },
