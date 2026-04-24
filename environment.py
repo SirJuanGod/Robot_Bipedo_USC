@@ -154,8 +154,9 @@ class BipedEnv(ManagedEnvironment):
             self,
             logging_enabled=True,
             cfg={
+                # === Tracking de comandos (lo más importante) ===
                 "tracking_lin_vel": {
-                    "weight": 1.0,
+                    "weight": 2.0,          # Aumentado — prioridad máxima
                     "fn": rewards.command_tracking_lin_vel,
                     "params": {
                         "vel_cmd_manager": self.velocity_command,
@@ -163,37 +164,35 @@ class BipedEnv(ManagedEnvironment):
                     },
                 },
                 "tracking_ang_vel": {
-                    "weight": 0.5,
+                    "weight": 1.0,          # Aumentado
                     "fn": rewards.command_tracking_ang_vel,
                     "params": {
                         "vel_cmd_manager": self.velocity_command,
                         "entity_manager": self.robot_manager,
                     },
                 },
+
+                # === Estabilidad del torso ===
                 "lin_vel_z": {
-                    "weight": -2.0,
+                    "weight": -2.0,         # Penaliza bote vertical
                     "fn": rewards.lin_vel_z_l2,
-                    "params": {
-                        "entity_manager": self.robot_manager,
-                    },
+                    "params": {"entity_manager": self.robot_manager},
                 },
                 "ang_vel_xy_l2": {
-                    "weight": -0.05,
+                    "weight": -0.1,         # Aumentado — penaliza más el bamboleo
                     "fn": rewards.ang_vel_xy_l2,
-                    "params": {
-                        "entity_manager": self.robot_manager,
-                    },
+                    "params": {"entity_manager": self.robot_manager},
                 },
+
+                # === Suavidad de movimiento ===
                 "action_rate": {
-                    "weight": -0.005,
+                    "weight": -0.01,        # Penaliza cambios bruscos de acción
                     "fn": rewards.action_rate_l2,
                 },
                 "similar_to_default": {
-                    "weight": -0.05,
+                    "weight": -0.1,         # Aumentado — mantener postura base
                     "fn": rewards.dof_similar_to_default,
-                    "params": {
-                        "action_manager": self.action_manager,
-                    },
+                    "params": {"action_manager": self.action_manager},
                 },
             },
         )
@@ -233,13 +232,6 @@ class BipedEnv(ManagedEnvironment):
                 },
                 "projected_gravity": {
                     "fn": lambda env: self.robot_manager.get_projected_gravity(),
-                },
-                "dof_position": {
-                    "fn": lambda env: self.action_manager.get_dofs_position(),
-                },
-                "dof_velocity": {
-                    "fn": lambda env: self.action_manager.get_dofs_velocity(),
-                    "scale": 0.05,
                 },
                 "actions": {
                     "fn": lambda env: self.action_manager.get_actions(),
