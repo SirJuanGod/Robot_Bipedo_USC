@@ -27,9 +27,9 @@ from rsl_rl.runners import OnPolicyRunner
 EXPERIMENT_NAME = "bipedo-usc-ppo-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-n", "--num_envs", type=int, default=100)
-parser.add_argument("--max_iterations", type=int, default=650)
-parser.add_argument("-d", "--device", type=str, default="cpu")
+parser.add_argument("-n", "--num_envs", type=int, default=4096)
+parser.add_argument("--max_iterations", type=int, default=3000)
+parser.add_argument("-d", "--device", type=str, default="gpu")
 parser.add_argument("-e", "--exp_name", type=str, default=EXPERIMENT_NAME)
 args = parser.parse_args()
 
@@ -39,26 +39,26 @@ def training_cfg(exp_name: str, max_iterations: int):
             "class_name": "PPO",
             "clip_param": 0.2,
             "desired_kl": 0.01,
-            "entropy_coef": 0.01,
+            "entropy_coef": 0.008,       # Balance exploración/explotación
             "gamma": 0.99,
             "lam": 0.95,
-            "learning_rate": 0.001,
+            "learning_rate": 0.0003,     # Conservador para estabilidad
             "max_grad_norm": 1.0,
             "num_learning_epochs": 5,
             "num_mini_batches": 4,
             "schedule": "adaptive",
             "use_clipped_value_loss": True,
             "value_loss_coef": 1.0,
-            "normalize_advantage_per_mini_batch": False,
+            "normalize_advantage_per_mini_batch": True,
             "optimizer": "adam",
             "rnd_cfg": None,
             "symmetry_cfg": None,
         },
         "actor": {
             "class_name": "MLPModel",
-            "hidden_dims": [512, 256, 128],
+            "hidden_dims": [512, 512, 256, 128],  # Red más profunda
             "activation": "elu",
-            "obs_normalization": False,
+            "obs_normalization": True,             # Esencial para sim-to-real
             "distribution_cfg": {
                 "class_name": "GaussianDistribution",
                 "init_std": 1.0,
@@ -66,9 +66,9 @@ def training_cfg(exp_name: str, max_iterations: int):
         },
         "critic": {
             "class_name": "MLPModel",
-            "hidden_dims": [512, 256, 128],
+            "hidden_dims": [512, 512, 256, 128],  # Critic más robusto
             "activation": "elu",
-            "obs_normalization": False,
+            "obs_normalization": True,
         },
         "multi_gpu": None,
         "runner": {
@@ -77,20 +77,19 @@ def training_cfg(exp_name: str, max_iterations: int):
             "load_run": -1,
             "log_interval": 1,
             "max_iterations": max_iterations,
-            "record_interval": -1,
+            "record_interval": 100,
             "resume": False,
             "resume_path": None,
             "run_name": "",
         },
         "runner_class_name": "OnPolicyRunner",
         "seed": 1,
-        "num_steps_per_env": 24,
+        "num_steps_per_env": 64,          # Más pasos = mejor estimación del retorno
         "save_interval": 100,
         "empirical_normalization": None,
         "obs_groups": {"actor": ["policy"], "critic": ["policy"]},
         "torch_compile_mode": None,
     }
-
 def main():
     # Initialize Genesis
     # Processor backend (GPU or CPU)

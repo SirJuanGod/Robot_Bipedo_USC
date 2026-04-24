@@ -12,6 +12,7 @@ from genesis_forge.managers import (
     ContactManager,
 )
 from genesis_forge.mdp import reset, rewards, terminations
+import torch
 
 
 INITIAL_BODY_POSITION = [0.0, 0.0, 0.228501]
@@ -56,6 +57,10 @@ class BipedEnv(ManagedEnvironment):
                 enable_joint_limit=True,
             ),
         )
+        
+        self.obs_history_len = 10  # 10 pasos de historia
+        self.obs_history = None
+        
 
         # Create terrain
         self.terrain = self.scene.add_entity(gs.morphs.Plane())
@@ -81,6 +86,7 @@ class BipedEnv(ManagedEnvironment):
         self.camera.follow_entity(self.robot)
 
     def config(self):
+
         """
         Configure the environment managers
         """
@@ -225,16 +231,42 @@ class BipedEnv(ManagedEnvironment):
             cfg={
                 "velocity_cmd": {"fn": self.velocity_command.observation},
                 "angle_velocity": {
-                    "fn": lambda env: self.robot_manager.get_angular_velocity(),
+                    "fn": lambda env: self.robot_manager.get_angular_velocity()
+                                    + 0.05 * torch.randn_like(
+                                        self.robot_manager.get_angular_velocity()
+                                    ),
                 },
                 "linear_velocity": {
-                    "fn": lambda env: self.robot_manager.get_linear_velocity(),
+                    "fn": lambda env: self.robot_manager.get_linear_velocity()
+                                    + 0.05 * torch.randn_like(
+                                        self.robot_manager.get_linear_velocity()
+                                    ),
                 },
                 "projected_gravity": {
-                    "fn": lambda env: self.robot_manager.get_projected_gravity(),
+                    "fn": lambda env: self.robot_manager.get_projected_gravity()
+                                    + 0.02 * torch.randn_like(
+                                        self.robot_manager.get_projected_gravity()
+                                    ),
                 },
                 "actions": {
                     "fn": lambda env: self.action_manager.get_actions(),
                 },
             },
         )
+        
+        
+    def _update_obs_history(self, obs):
+        """Mantiene un buffer circular de observaciones pasadas."""
+        import torch
+        if self.obs_history is None:
+            # Inicializa con ceros
+            self.obs_history = torch.zeros(
+                self.num_envs,
+                self.obs_history_len * obs.shape[-1],
+                device=obs.device
+            )
+        # Desplaza el historial y añade la nueva observación
+        obs_dim = obs.shape[-1]
+        self.obs_history = torch.roll(self.obs_history, shifts=-obs_dim, dims=-1)
+        self.obs_history[:, -obs_dim:] = obs
+        return self.obs_history
