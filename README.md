@@ -284,8 +284,9 @@ El aprendizaje es progresivo con 4 fases:
 
 ---
 Requisitos Críticos:
+---
 
->[!ALERT]
+>.[!ALERT].
 > **1. Versión de rsl-rl-lib**: Debe ser >= 2.2.4
 
 ```bash
