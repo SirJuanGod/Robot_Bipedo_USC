@@ -275,18 +275,22 @@ Robot_Bipedo_USC/
 El aprendizaje es progresivo con 4 fases:
 
 **Fase 1**: Mantener equilibrio básico
+
 **Fase 2**: Aumentar velocidad de caminata
+
 **Fase 3**: Mejorar estabilidad y eficiencia
+
 **Fase 4**: Optimizar movimiento natural
 
 ---
-Requisitos Críticos
+Requisitos Críticos:
 
 >[!ALERT]
 > **1. Versión de rsl-rl-lib**: Debe ser >= 2.2.4
-> ```bash
+
+```bash
 > pip show rsl-rl-lib
-> ```
+```
 
 >[!ALERT]
 > **2. Dimensión de observación**: Exactamente 25 dimensiones en el observador. No modificar sin ajustar la red neuronal.
