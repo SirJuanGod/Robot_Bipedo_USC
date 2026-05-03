@@ -49,7 +49,7 @@ Proyecto de investigación para el desarrollo y entrenamiento de un robot bíped
 
 ### Software Requerido
 
-- **Python**: 3.8 o superior (se recomienda 3.10 o 3.11)
+- **Python**: 3.10 o superior (se recomienda 3.11 o 3.12)
 - **Conda** o **Pip**: Gestor de paquetes Python
 - **CUDA**: 11.8 o superior (opcional, pero recomendado para GPU)
 
@@ -230,33 +230,33 @@ tensorboard --logdir=./logs
 ---
 
 ## Estructura del Proyecto
+```
 Robot_Bipedo_USC/
-├── train.py # Script principal de entrenamiento
-├── eval.py # Script de evaluación
-├── environment.py # Definición del entorno
-├── requirements.txt # Dependencias del proyecto
-├── confi_cad.ipynb # Notebook de configuración CAD
-├── README.md # Este archivo
+├── train.py                      # Script principal de entrenamiento
+├── eval.py                       # Script de evaluación
+├── environment.py                # Definición del entorno
+├── requirements.txt              # Dependencias del proyecto
+├── confi_cad.ipynb               # Notebook de configuración CAD
+├── README.md                     # Este archivo
 │
-├── model/ # Configuración del robot
-│ ├── Bipedo.xml # Archivo de definición del robot (MuJoCo)
-│ ├── config.json # Configuración de parámetros del modelo
-│ ├── scene.xml # Escena de simulación
-│ └── assets/ # Modelos 3D del robot
-│ ├── ank_d.part # Tobillo derecho
-│ ├── ank_i.part # Tobillo izquierdo
-│ ├── kne_d.part # Rodilla derecha
-│ ├── kne_i.part # Rodilla izquierda
-│ └── ... # Demás partes del robot
+├── model/                       #Configuración del robot
+│   ├── Bipedo.xml               # Archivo de definición del robot
+│   ├── config.json              # Configuración de parámetros
+│   ├── scene.xml                # Escena de simulación
+│   └── assets/                  # Modelos 3D del robot
+│       ├── ank_d.part           # Tobillo derecho
+│       ├── ank_i.part           # Tobillo izquierdo
+│       ├── kne_d.part           # Rodilla derecha
+│       ├── kne_i.part           # Rodilla izquierda
+│       └── ... (más partes)
 │
-└── logs/ # Resultados del entrenamiento
-└── bipedo-usc-ppo-v1/
-├── model_0.pt # Checkpoints del modelo
-├── events.out.tfevents # Datos de TensorBoard
-├── videos/ # Videos generados durante el entrenamiento
-└── cfgs.pkl # Configuración guardada del experimento
-
-text
+└── logs/                        # Resultados del entrenamiento
+    └── bipedo-usc-ppo-v1/
+        ├── model_0.pt           # Checkpoints del modelo
+        ├── events.out.tfevents  # Datos de TensorBoard
+        ├── videos/              # Videos de entrenamiento
+        └── cfgs.pkl             # Configuración guardada
+```
 
 ---
 
@@ -470,7 +470,7 @@ Para soporte, revisa en este orden:
 ## Licencia
 
 > [!NOTE]
-> Especifica aquí la licencia del proyecto (MIT, Apache 2.0, GPL, etc.).
+> Actualmente el proyecto no cuenta con una licencia oficial.
 
 ---
 
