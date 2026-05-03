@@ -1,13 +1,13 @@
 {
     "configuration": "default",
     "documentId": "7cb68e410882da8f56de0b93",
-    "documentMicroversion": "c430c74c70be058c7c7208c8",
-    "documentVersion": "41cdc24183520bfd099df7fa",
-    "elementId": "4f03cc2cb4ab9be722d10dd6",
+    "documentMicroversion": "67f40caa9a76c0655e1e27f4",
+    "documentVersion": "2e0c5234d7dc9131e5f17421",
+    "elementId": "17d02eefb00f3c3b560b7cbe",
     "fullConfiguration": "default",
-    "id": "MZaApfSD7eDibcoMd",
+    "id": "MDV6kJbXxfMS9iPKY",
     "isStandardContent": false,
-    "name": "Conector_bh <4>",
+    "name": "CBH_I <1>",
     "partId": "JHD",
     "suppressed": false,
     "type": "Part"

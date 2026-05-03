@@ -27,11 +27,12 @@ from rsl_rl.runners import OnPolicyRunner
 EXPERIMENT_NAME = "bipedo-usc-ppo-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-n", "--num_envs", type=int, default=4096)
-parser.add_argument("--max_iterations", type=int, default=3000)
-parser.add_argument("-d", "--device", type=str, default="gpu")
+parser.add_argument("-n", "--num_envs", type=int, default=200)
+parser.add_argument("--max_iterations", type=int, default=1500)
+parser.add_argument("-d", "--device", type=str, default="cpu")
 parser.add_argument("-e", "--exp_name", type=str, default=EXPERIMENT_NAME)
 args = parser.parse_args()
+
 
 def training_cfg(exp_name: str, max_iterations: int):
     return {
@@ -39,10 +40,10 @@ def training_cfg(exp_name: str, max_iterations: int):
             "class_name": "PPO",
             "clip_param": 0.2,
             "desired_kl": 0.01,
-            "entropy_coef": 0.008,       # Balance exploración/explotación
+            "entropy_coef": 0.008,
             "gamma": 0.99,
             "lam": 0.95,
-            "learning_rate": 0.0003,     # Conservador para estabilidad
+            "learning_rate": 0.0003,
             "max_grad_norm": 1.0,
             "num_learning_epochs": 5,
             "num_mini_batches": 4,
@@ -56,9 +57,9 @@ def training_cfg(exp_name: str, max_iterations: int):
         },
         "actor": {
             "class_name": "MLPModel",
-            "hidden_dims": [512, 512, 256, 128],  # Red más profunda
+            "hidden_dims": [256, 128, 64],  # red ajustada a 25 dims de observación
             "activation": "elu",
-            "obs_normalization": True,             # Esencial para sim-to-real
+            "obs_normalization": True,
             "distribution_cfg": {
                 "class_name": "GaussianDistribution",
                 "init_std": 1.0,
@@ -66,7 +67,7 @@ def training_cfg(exp_name: str, max_iterations: int):
         },
         "critic": {
             "class_name": "MLPModel",
-            "hidden_dims": [512, 512, 256, 128],  # Critic más robusto
+            "hidden_dims": [256, 128, 64],
             "activation": "elu",
             "obs_normalization": True,
         },
@@ -84,18 +85,19 @@ def training_cfg(exp_name: str, max_iterations: int):
         },
         "runner_class_name": "OnPolicyRunner",
         "seed": 1,
-        "num_steps_per_env": 64,          # Más pasos = mejor estimación del retorno
+        "num_steps_per_env": 120,
         "save_interval": 100,
         "empirical_normalization": None,
         "obs_groups": {"actor": ["policy"], "critic": ["policy"]},
         "torch_compile_mode": None,
     }
+
+
 def main():
-    # Initialize Genesis
     # Processor backend (GPU or CPU)
-    backend = gs.gpu
+    backend = gs.gpu # type: ignore
     if args.device == "cpu":
-        backend = gs.cpu
+        backend = gs.cpu # type: ignore
         torch.set_default_device("cpu")
     gs.init(logging_level="warning", backend=backend, performance_mode=True)
 
@@ -108,7 +110,7 @@ def main():
     os.makedirs(log_path, exist_ok=True)
     print(f"Logging to: {log_path}")
 
-    # Load training configuration and save snapshot of training configs
+    # Load training configuration and save snapshot
     cfg = training_cfg(experiment_name, args.max_iterations)
     pickle.dump(
         [cfg],
@@ -127,17 +129,18 @@ def main():
     )
 
     # Build the environment
-    env = RslRlWrapper(env)
+    env = RslRlWrapper(env) # type: ignore
     env.build()
     env.reset()
-    env.cfg = {}
+    env.cfg = {} # type: ignore
 
     # Train
     print("💪 Training model...")
-    runner = OnPolicyRunner(env, copy.deepcopy(cfg), log_path, device=gs.device)
-    runner.git_status_repos = ["."]
+    runner = OnPolicyRunner(env, copy.deepcopy(cfg), log_path, device=gs.device) # type: ignore 
+    runner.git_status_repos = ["."] # type: ignore
     runner.learn(
-        num_learning_iterations=args.max_iterations, init_at_random_ep_len=False
+        num_learning_iterations=args.max_iterations,
+        init_at_random_ep_len=False,  # desincroniza los entornos para mejor exploración
     )
     env.close()
 
