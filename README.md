@@ -283,15 +283,17 @@ El aprendizaje es progresivo con 4 fases:
 **Fase 4**: Optimizar movimiento natural
 
 ---
-Requisitos Críticos:
----
+## Requisitos Críticos:
 
->.[!ALERT].
+>[!ALERT]
 > **1. Versión de rsl-rl-lib**: Debe ser >= 2.2.4
+
+###
 
 ```bash
 > pip show rsl-rl-lib
 ```
+###
 
 >[!ALERT]
 > **2. Dimensión de observación**: Exactamente 25 dimensiones en el observador. No modificar sin ajustar la red neuronal.
