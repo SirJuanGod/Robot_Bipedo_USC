@@ -17,10 +17,10 @@ from genesis_forge.mdp import reset, rewards, terminations
 from genesis_forge.genesis_env import GenesisEnv
 
 
-INITIAL_BODY_POSITION = [0.0, 0.0, 0.228501]
+INITIAL_BODY_POSITION = [0.0, 0.0, 0.2340]
 INITIAL_QUAT = [1.0, 0.0, 0.0, 0.0]
 
-MAX_LIN_VEL = 0.5
+MAX_LIN_VEL = 0.7
 
 
 def similar_to_default_scaled(env: GenesisEnv) -> torch.Tensor:
@@ -36,48 +36,48 @@ class BipedEnv(ManagedEnvironment):
 
     CURRICULUM = {
         1: {
-            "tracking_lin_vel":   0.5,
-            "tracking_ang_vel":   0.3,
-            "lin_vel_z":         -2.0,
-            "ang_vel_xy_l2":     -0.3,
-            "action_rate":       -0.02,
-            "similar_to_default": 0.0,
-            "body_acceleration":  0.0,
-            "stand_still":        0.0,
-            "feet_air_time":      0.0,
+            "tracking_lin_vel":   2.0,  # Incremento agresivo para que 'avanzar' sea la prioridad #1
+            "tracking_ang_vel":   0.2,  # Reducido para que no se distraiga girando
+            "lin_vel_z":         -0.5,  # Casi sin penalización para que experimente sin miedo
+            "ang_vel_xy_l2":     -0.05,
+            "action_rate":       -0.01,
+            "similar_to_default":-0.05,
+            "body_acceleration": -0.01,
+            "stand_still":       -1.0,  # Penalización clara por no moverse
+            "feet_air_time":      0.2,  # Bajo, para que no se premie solo el gesto de levantar el pie
         },
         2: {
-            "tracking_lin_vel":   1.5,
-            "tracking_ang_vel":   0.7,
+            "tracking_lin_vel":   3.5,
+            "tracking_ang_vel":   0.5,
+            "lin_vel_z":         -1.5,
+            "ang_vel_xy_l2":     -0.2,
+            "action_rate":       -0.02,
+            "similar_to_default":-0.1,
+            "body_acceleration": -0.05,
+            "stand_still":       -2.5,  # Obligamos al robot a salir de su zona de confort
+            "feet_air_time":      0.5,
+        },
+        3: {
+            "tracking_lin_vel":   5.0,  # Premio muy alto por alcanzar la velocidad deseada
+            "tracking_ang_vel":   0.8,
             "lin_vel_z":         -3.0,
             "ang_vel_xy_l2":     -0.5,
             "action_rate":       -0.05,
             "similar_to_default":-0.2,
-            "body_acceleration":  0.0,
-            "stand_still":        0.0,
-            "feet_air_time":      0.8,
-        },
-        3: {
-            "tracking_lin_vel":   2.0,
-            "tracking_ang_vel":   1.0,
-            "lin_vel_z":         -5.0,
-            "ang_vel_xy_l2":     -0.8,
-            "action_rate":       -0.08,
-            "similar_to_default":-0.2,
-            "body_acceleration": -0.3,
-            "stand_still":       -0.2,
-            "feet_air_time":      1.0,
+            "body_acceleration": -0.2,
+            "stand_still":       -5.0,  # Estar quieto arruina el puntaje total
+            "feet_air_time":      1.0,  # El 'air time' ahora apoya una marcha ya establecida
         },
         4: {
-            "tracking_lin_vel":   2.0,
+            "tracking_lin_vel":   6.0,
             "tracking_ang_vel":   1.0,
-            "lin_vel_z":         -5.0,
+            "lin_vel_z":         -5.0,  # Aquí ya exigimos que el avance sea limpio y sin saltos
             "ang_vel_xy_l2":     -0.8,
             "action_rate":       -0.1,
-            "similar_to_default":-0.2,
+            "similar_to_default":-0.3,
             "body_acceleration": -0.5,
-            "stand_still":       -0.3,
-            "feet_air_time":      1.0,
+            "stand_still":       -10.0, 
+            "feet_air_time":      1.2,
         },
     }
 
@@ -87,7 +87,7 @@ class BipedEnv(ManagedEnvironment):
         3: {"duration_s": 18.0, "tracking": 0.7},
     }
 
-    EVAL_WINDOW = 100
+    EVAL_WINDOW = 50
 
     def __init__(
         self,
@@ -112,7 +112,7 @@ class BipedEnv(ManagedEnvironment):
             sim_options=gs.options.SimOptions(dt=self.dt, substeps=2),
             viewer_options=gs.options.ViewerOptions(
                 max_FPS=int(0.5 / self.dt),
-                camera_pos=(2.5, 0.0, 2.5),
+                camera_pos=(3, 0.5, 2.5),
                 camera_lookat=(0.0, 0.0, 0.5),
                 camera_fov=40,
             ),
@@ -175,18 +175,8 @@ class BipedEnv(ManagedEnvironment):
                 "(BD|BI)": 8.0,    # codo
                 "HEAD":    5.0,    # cabeza
             },
-            kv={
-                "(CD|CI)": 0.8,
-                "(LD|LI)": 0.8,
-                "(KD|KI)": 0.6,
-                "(FD|FI)": 0.6,
-                "(HD|HI)": 3.0,
-                "(BD|BI)": 3.0,
-                "HEAD":    3.0,
-            },
+            kv=1.0,
             default_pos={
-                "(BD)":  0.7854,   # codo derecho ligeramente doblado
-                "(BI)": -0.7854,   # codo izquierdo ligeramente doblado
                 ".*":    0.0,
             },
             max_force={".*": 1.0},
@@ -202,7 +192,7 @@ class BipedEnv(ManagedEnvironment):
         self.velocity_command = VelocityCommandManager(
             self,
             range={
-                "lin_vel_x": (0.0, 0.5),
+                "lin_vel_x": (0.0, MAX_LIN_VEL),
                 "lin_vel_y": (0.0, 0.0),  # Lateral movement disabled intentionally
                 "ang_vel_z": (-0.3, 0.3),
             },
@@ -310,14 +300,14 @@ class BipedEnv(ManagedEnvironment):
                     "fn": terminations.contact_force,
                     "params": {
                         "contact_manager": self.torso_contact_manager,
-                        "threshold": 1.0,
+                        "threshold": 0.5,
                     },
                 },
                 "torso_height": {
                     "fn": terminations.base_height_below_minimum,
                     "params": {
                         "entity_manager": self.robot_manager,
-                        "minimum_height": 0.19,
+                        "minimum_height": 0.17,
                     },
                 },
                 "bad_orientation": {
@@ -378,11 +368,11 @@ class BipedEnv(ManagedEnvironment):
             self.curriculum_phase += 1
             self._apply_phase_weights(self.curriculum_phase)
             print(
-                f"\n{'='*60}\n"
+                f"\n{'--'*60}\n"
                 f"  CURRICULUM: Avanzando a Fase {self.curriculum_phase}\n"
                 f"  Duración media:  {mean_duration:.1f}s  (umbral: {threshold['duration_s']}s)\n"
                 f"  Tracking medio:  {mean_tracking:.3f}   (umbral: {threshold['tracking']})\n"
-                f"{'='*60}\n"
+                f"{'--'*60}\n"
             )
 
     def on_episode_end(self, episode_duration_s: float):
