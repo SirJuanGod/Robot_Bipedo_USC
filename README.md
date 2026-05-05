@@ -1,6 +1,6 @@
 # Robot Bípedo USC — Entrenamiento con Aprendizaje por Refuerzo
 
-Proyecto de investigación para el desarrollo y entrenamiento de un robot bípedo humanoide mediante **Aprendizaje por Refuerzo (RL)** usando el algoritmo **PPO (Proximal Policy Optimization)**. El proyecto utiliza el simulador **Genesis** y la librería **rsl-rl-lib** para entrenar políticas de control locomotor.
+Proyecto de investigación de la Universidad Santiago de Cali para el desarrollo y entrenamiento de un robot bípedo humanoide mediante **Aprendizaje por Refuerzo (RL)**. Se utiliza el algoritmo **PPO (Proximal Policy Optimization)**, el simulador físico **Genesis** y la librería **rsl-rl-lib** para aprender políticas de locomoción bípeda.
 
 ---
 
@@ -24,11 +24,11 @@ Proyecto de investigación para el desarrollo y entrenamiento de un robot bíped
 
 ## Características Principales
 
-- **Algoritmo PPO** — Implementación de Proximal Policy Optimization para entrenamiento estable.
+- **Algoritmo PPO** — Implementación estable de Proximal Policy Optimization.
 - **Entrenamiento Distribuido** — Soporte para múltiples entornos paralelos (200 por defecto).
-- **Aprendizaje Curricular** — 4 fases de dificultad progresiva para facilitar el aprendizaje.
-- **Simulación Física** — Utiliza Genesis, un simulador físico de alto rendimiento.
-- **GPU/CPU Flexible** — Soporta entrenamiento tanto en GPU como en CPU.
+- **Aprendizaje Curricular** — 4 fases de dificultad progresiva para facilitar la convergencia.
+- **Simulación Física** — Usa Genesis, un simulador de alto rendimiento.
+- **GPU/CPU Flexible** — El entorno soporta ambos dispositivos. El dispositivo se configura directamente en `train.py` o por argumento al ejecutar el script.
 - **Registro de Videos** — Captura automática de videos durante el entrenamiento.
 - **Monitoreo con TensorBoard** — Seguimiento en tiempo real de métricas de entrenamiento.
 
@@ -45,13 +45,13 @@ Proyecto de investigación para el desarrollo y entrenamiento de un robot bíped
 | GPU | NVIDIA con CUDA | NVIDIA RTX (4+ GB VRAM) |
 
 > [!NOTE]
-> Si no dispones de GPU NVIDIA, el entrenamiento puede ejecutarse en CPU, aunque será considerablemente más lento.
+> El entorno de simulación soporta tanto CPU como GPU. Si no dispones de una GPU NVIDIA compatible, puedes ejecutar el entrenamiento en CPU; sin embargo, será considerablemente más lento. Para cambiar el dispositivo, consulta la sección [Entrenar el Modelo](#entrenar-el-modelo).
 
 ### Software Requerido
 
 - **Python**: 3.10 o superior (se recomienda 3.11 o 3.12)
 - **Conda** o **Pip**: Gestor de paquetes Python
-- **CUDA**: 11.8 o superior (opcional, pero recomendado para GPU)
+- **CUDA**: 11.8 o superior (opcional, pero necesario para entrenar en GPU)
 
 ---
 
@@ -68,30 +68,26 @@ cd d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC
 #### Opción A: Conda (Recomendado)
 
 ```bash
-# Crear el ambiente
 conda create -n robot_bpd python=3.11
-
-# Activar el ambiente
 conda activate robot_bpd
 ```
 
 #### Opción B: Virtualenv
 
 ```bash
-# Crear el ambiente
 python -m venv robot_bpd
 
-# Activar en Windows
+# Windows
 robot_bpd\Scripts\activate
 
-# Activar en Linux/Mac
+# Linux/Mac
 source robot_bpd/bin/activate
 ```
 
 ### Paso 3: Instalar Dependencias
 
 > [!WARNING]
-> Revisa el archivo `requirements.txt` antes de instalar. Algunos paquetes pueden tener incompatibilidades de versión.
+> Revisa el archivo `requirements.txt` antes de instalar. Algunos paquetes pueden tener incompatibilidades de versión entre sí.
 
 ```bash
 pip install -r requirements.txt
@@ -104,7 +100,7 @@ python -c "import genesis; import torch; import rsl_rl; print('Todas las depende
 ```
 
 > [!NOTE]
-> Si la instalación fue exitosa, verás el mensaje de confirmación. En caso de errores, consulta la sección [Solución de Problemas](#solución-de-problemas).
+> Si la instalación fue exitosa, verás el mensaje de confirmación en la terminal. En caso de errores, consulta la sección [Solución de Problemas](#solución-de-problemas).
 
 ---
 
@@ -116,8 +112,8 @@ Define el entorno de simulación del robot bípedo con los siguientes parámetro
 
 | Parámetro | Valor |
 |-----------|-------|
-| Posición inicial | `[0.0, 0.0, 0.228501]` metros |
-| Velocidad máxima | `0.5` m/s |
+| Posición inicial | `[0.0, 0.0, 0.2340]` metros |
+| Velocidad máxima | `0.3` m/s |
 | Dimensiones de observación | `25` (ángulos articulares, velocidades, comandos) |
 | Fases del currículo | 4 fases progresivas |
 
@@ -139,7 +135,7 @@ Contiene la configuración del modelo CAD exportado desde OnShape:
 ```
 
 > [!CAUTION]
-> No modifiques estos valores sin comprender sus efectos en la dinámica del robot. Cambios inadecuados pueden impedir que la política converja durante el entrenamiento.
+> No modifiques los valores de `config.json` sin comprender su efecto en la dinámica del robot. Cambios inadecuados en las ganancias o límites articulares pueden impedir que la política converja durante el entrenamiento.
 
 ---
 
@@ -147,35 +143,55 @@ Contiene la configuración del modelo CAD exportado desde OnShape:
 
 ### Entrenar el Modelo
 
-#### Entrenamiento por Defecto
+#### Sobre el dispositivo de cómputo
+
+> [!IMPORTANT]
+> El script `train.py` usa **CPU por defecto**. El entorno de simulación está preparado para correr en GPU, pero debes indicarlo explícitamente al lanzar el entrenamiento. Puedes hacerlo de dos formas:
+>
+> **Opción 1 — Argumento al ejecutar:**
+> ```bash
+> python train.py -d gpu
+> ```
+>
+> **Opción 2 — Cambiando el valor por defecto en `train.py`:**
+> Busca la línea donde se define el parámetro `device` y cambia `"cpu"` por `"gpu"`:
+> ```python
+> # Antes
+> parser.add_argument("-d", "--device", type=str, default="cpu")
+>
+> # Después
+> parser.add_argument("-d", "--device", type=str, default="gpu")
+> ```
+> Con este cambio, todos los entrenamientos usarán GPU sin necesidad de pasar el argumento cada vez.
+
+#### Entrenamiento por Defecto (CPU)
 
 ```bash
 python train.py
 ```
 
-Esto iniciará el entrenamiento con la configuración predeterminada:
-
+Inicia el entrenamiento con la configuración predeterminada:
 - 200 entornos paralelos
 - 1500 iteraciones máximas
-- Dispositivo: CPU (o GPU si está disponible)
+- Dispositivo: **CPU**
 - Nombre del experimento: `bipedo-usc-ppo-v1`
 
 #### Entrenamiento Personalizado
 
 ```bash
-# Especificar número de entornos
+# Usar GPU (recomendado si está disponible)
+python train.py -d gpu
+
+# Especificar número de entornos paralelos
 python train.py -n 100
 
 # Especificar máximo de iteraciones
 python train.py --max_iterations 2000
 
-# Usar GPU
-python train.py -d gpu
-
-# Especificar nombre del experimento
+# Asignar un nombre al experimento
 python train.py -e "bipedo-usc-ppo-v2"
 
-# Combinar parámetros
+# Combinar parámetros (ejemplo completo con GPU)
 python train.py -n 300 --max_iterations 3000 -d gpu -e "entrenamiento-v3"
 ```
 
@@ -183,15 +199,15 @@ python train.py -n 300 --max_iterations 3000 -d gpu -e "entrenamiento-v3"
 
 | Parámetro | Abreviatura | Tipo | Por Defecto | Descripción |
 |-----------|-------------|------|-------------|-------------|
-| `--num_envs` | `-n` | int | 200 | Número de entornos paralelos |
-| `--max_iterations` | — | int | 1500 | Máximo de iteraciones de entrenamiento |
-| `--device` | `-d` | str | `"cpu"` | Dispositivo: `"cpu"` o `"gpu"` |
-| `--exp_name` | `-e` | str | `"bipedo-usc-ppo-v1"` | Nombre del experimento |
+| `--num_envs` | `-n` | int | `200` | Número de entornos paralelos |
+| `--max_iterations` | — | int | `1500` | Máximo de iteraciones de entrenamiento |
+| `--device` | `-d` | str | `"cpu"` | Dispositivo de cómputo: `"cpu"` o `"gpu"` |
+| `--exp_name` | `-e` | str | `"bipedo-usc-ppo-v1"` | Nombre del experimento (afecta la carpeta de logs) |
 
-> [!IMPORTANT]
-> El tiempo de entrenamiento varía considerablemente según el hardware:
+> [!TIP]
+> Si tienes GPU disponible, úsala siempre. La diferencia en tiempo es significativa:
 > - **GPU**: aproximadamente 1–2 horas para 1500 iteraciones.
-> - **CPU**: aproximadamente 6–8 horas para 1500 iteraciones.
+> - **CPU**: aproximadamente 6–8 horas para las mismas iteraciones.
 
 ### Evaluar el Modelo
 
@@ -199,64 +215,59 @@ python train.py -n 300 --max_iterations 3000 -d gpu -e "entrenamiento-v3"
 # Evaluación con configuración por defecto
 python eval.py
 
-# Especificar dispositivo
+# Evaluación usando GPU
 python eval.py -d gpu
 
-# Especificar nombre del experimento
+# Especificar el experimento a evaluar
 python eval.py -e "bipedo-usc-ppo-v1"
 ```
 
 > [!NOTE]
-> Si no existen modelos entrenados previamente, la evaluación fallará. Ejecuta primero `python train.py`.
+> Si no existen modelos entrenados en `logs/`, la evaluación fallará con un aviso. Asegúrate de haber completado al menos un entrenamiento antes de ejecutar `eval.py`.
 
 ### Visualizar Resultados
 
 ```bash
-# Activar el ambiente
 conda activate robot_bpd
-
-# Iniciar TensorBoard
 tensorboard --logdir=./logs
 ```
 
 > [!TIP]
-> Métricas disponibles en TensorBoard:
-> - Recompensa episódica
+> Métricas disponibles en TensorBoard durante y después del entrenamiento:
+> - Recompensa episódica acumulada
 > - Pérdida del actor y del crítico
-> - Tasa de entropía
-> - Velocidad del robot
-> - Pasos de entrenamiento completados
+> - Tasa de entropía de la política
+> - Velocidad de desplazamiento del robot
+> - Número de pasos de entrenamiento completados
 
 ---
 
 ## Estructura del Proyecto
-```
 Robot_Bipedo_USC/
-├── train.py                      # Script principal de entrenamiento
-├── eval.py                       # Script de evaluación
-├── environment.py                # Definición del entorno
-├── requirements.txt              # Dependencias del proyecto
-├── confi_cad.ipynb               # Notebook de configuración CAD
-├── README.md                     # Este archivo
+├── train.py                      # Script principal de entrenamiento
+├── eval.py                       # Script de evaluación
+├── environment.py                # Definición del entorno y currículo
+├── requirements.txt              # Dependencias del proyecto
+├── confi_cad.ipynb               # Notebook de configuración CAD
+├── README.md                     # Este archivo
 │
-├── model/                       #Configuración del robot
-│   ├── Bipedo.xml               # Archivo de definición del robot
-│   ├── config.json              # Configuración de parámetros
-│   ├── scene.xml                # Escena de simulación
-│   └── assets/                  # Modelos 3D del robot
-│       ├── ank_d.part           # Tobillo derecho
-│       ├── ank_i.part           # Tobillo izquierdo
-│       ├── kne_d.part           # Rodilla derecha
-│       ├── kne_i.part           # Rodilla izquierda
-│       └── ... (más partes)
+├── model/                        # Configuración del robot
+│   ├── Bipedo.xml                # Definición del robot en formato MuJoCo
+│   ├── config.json               # Parámetros de articulaciones y ganancias
+│   ├── scene.xml                 # Escena de simulación
+│   └── assets/                   # Modelos 3D del robot
+│       ├── ank_d.part            # Tobillo derecho
+│       ├── ank_i.part            # Tobillo izquierdo
+│       ├── kne_d.part            # Rodilla derecha
+│       ├── kne_i.part            # Rodilla izquierda
+│       └── ... (más partes)
 │
-└── logs/                        # Resultados del entrenamiento
-    └── bipedo-usc-ppo-v1/
-        ├── model_0.pt           # Checkpoints del modelo
-        ├── events.out.tfevents  # Datos de TensorBoard
-        ├── videos/              # Videos de entrenamiento
-        └── cfgs.pkl             # Configuración guardada
-```
+└── logs/                         # Resultados del entrenamiento
+└── bipedo-usc-ppo-v1/
+├── model_0.pt            # Checkpoints del modelo
+├── events.out.tfevents   # Datos para TensorBoard
+├── videos/               # Videos capturados durante entrenamiento
+└── cfgs.pkl              # Configuración guardada del experimento
 
 ---
 
@@ -264,44 +275,51 @@ Robot_Bipedo_USC/
 
 ### Hiperparámetros de PPO (`train.py`)
 
+Estos valores se encuentran directamente en `train.py` y pueden ajustarse antes de entrenar:
+
 ```python
-"clip_param":      0.2       # Límite del ratio de política (clip)
-"learning_rate":   0.0003    # Tasa de aprendizaje
-"gamma":           0.99      # Factor de descuento
-"entropy_coef":    0.008     # Coeficiente de entropía
-"max_iterations":  1500      # Máximo de iteraciones
+"clip_param":      0.2       # Límite del ratio de política (clip de PPO)
+"learning_rate":   0.0003    # Tasa de aprendizaje del optimizador
+"gamma":           0.99      # Factor de descuento para recompensas futuras
+"entropy_coef":    0.008     # Coeficiente de entropía (fomenta exploración)
+"max_iterations":  1500      # Máximo de iteraciones de entrenamiento
 "num_envs":        200       # Número de entornos paralelos
 ```
 
 ### Fases del Currículo de Aprendizaje
 
+El entrenamiento avanza progresivamente a través de 4 fases definidas en `environment.py`:
+
 | Fase | Objetivo |
 |------|----------|
-| **Fase 1** | Mantener equilibrio básico |
-| **Fase 2** | Aumentar la velocidad de caminata |
-| **Fase 3** | Mejorar estabilidad y eficiencia de movimiento |
-| **Fase 4** | Optimizar el movimiento natural del robot |
+| **Fase 1** | Mantener el equilibrio básico en posición estática |
+| **Fase 2** | Comenzar a caminar aumentando la velocidad objetivo |
+| **Fase 3** | Mejorar la estabilidad y la eficiencia energética del movimiento |
+| **Fase 4** | Optimizar la naturalidad y fluidez del paso del robot |
 
 ---
 
 ## Puntos Clave a Considerar
 
 > [!CAUTION]
-> **Versión de rsl-rl-lib**: Debe ser `>= 2.2.4`. Verifica con:
+> **Versión de rsl-rl-lib**: debe ser `>= 2.2.4`. Para verificar la versión instalada:
 > ```bash
 > pip show rsl-rl-lib
 > ```
 
 > [!CAUTION]
-> **Dimensión de observación**: El observador debe tener exactamente **25 dimensiones**. No modifiques este valor sin ajustar también la arquitectura de la red neuronal.
+> **Dimensión de observación**: el vector de observación debe tener exactamente **25 dimensiones**, definidas en `environment.py`. Si modificas este número, debes ajustar también la arquitectura de la red neuronal en `train.py` para que coincidan.
 
 > [!CAUTION]
-> **Memoria GPU**: Se requieren al menos **4 GB de VRAM** para ejecutar 200 entornos. Si hay problemas de memoria, reduce el número de entornos con `--num_envs`.
+> **Memoria GPU**: se requieren al menos **4 GB de VRAM** para ejecutar 200 entornos en paralelo. Si el entrenamiento falla por falta de memoria, reduce el número de entornos:
+> ```bash
+> python train.py -d gpu -n 64
+> ```
 
 > [!NOTE]
-> - **Convergencia**: El modelo comienza a converger alrededor de las iteraciones 500–800.
-> - **Checkpoints**: Los modelos se guardan automáticamente cada 100 iteraciones en `logs/`.
-> - **Videos**: Se generan automáticamente cada 2 episodios para seguimiento visual.
+> - **Convergencia**: el modelo típicamente comienza a mostrar comportamientos coherentes entre las iteraciones 500 y 800.
+> - **Checkpoints**: el modelo se guarda automáticamente cada 100 iteraciones en `logs/`.
+> - **Videos**: se generan automáticamente cada 2 episodios para seguimiento visual del progreso.
 
 ---
 
@@ -309,72 +327,88 @@ Robot_Bipedo_USC/
 
 ### El entrenamiento es muy lento
 
-**Causa**: Se está usando CPU en lugar de GPU.
+**Causa probable**: el entrenamiento está corriendo en CPU en lugar de GPU.
 
 ```bash
-# Verificar disponibilidad de GPU
+# Verifica si PyTorch detecta tu GPU
 python -c "import torch; print(torch.cuda.is_available())"
+```
 
-# Si devuelve True, entrena con GPU
+Si devuelve `True`, tu GPU está disponible. Actívala con:
+
+```bash
 python train.py -d gpu
 ```
 
+Si devuelve `False`, revisa que CUDA esté instalado correctamente y que el driver de tu GPU sea compatible.
+
+---
+
 ### Error de memoria insuficiente (CUDA out of memory)
 
-**Causa**: Demasiados entornos paralelos para la VRAM disponible.
+**Causa probable**: demasiados entornos paralelos para la VRAM disponible.
+
+Reduce el número de entornos hasta que el error desaparezca:
 
 ```bash
-# Reducir número de entornos
+# Prueba con menos entornos en GPU
 python train.py -n 64 -d gpu
 
-# O usar CPU como alternativa
+# O entrena en CPU si el problema persiste
 python train.py -n 100 -d cpu
 ```
+
+---
 
 ### El modelo no converge
 
 **Causas posibles**:
-- Tasa de aprendizaje demasiado alta.
-- Distribución incorrecta en las observaciones.
-- Arquitectura de red neuronal inadecuada.
+- Tasa de aprendizaje demasiado alta o demasiado baja.
+- Distribución incorrecta en las observaciones de `environment.py`.
+- Arquitectura de red neuronal inadecuada para el espacio de estados.
 
-**Solución**: Monitorea las métricas en TensorBoard y ajusta los hiperparámetros en `train.py`.
+Monitorea las métricas en TensorBoard para identificar si el problema es de exploración (entropía muy baja), de gradientes (pérdida inestable) o de recompensa (currículo mal calibrado). Ajusta los hiperparámetros en `train.py` según lo que observes.
+
+---
 
 ### Errores de módulos no encontrados
 
 > [!WARNING]
-> **`No module named 'genesis'`**
+> **`No module named 'genesis'`** — El simulador no está instalado:
 > ```bash
 > pip install genesis-world
 > ```
 
 > [!WARNING]
-> **`Please install 'rsl-rl-lib>=2.2.4'`**
+> **`Please install 'rsl-rl-lib>=2.2.4'`** — La versión instalada es antigua:
 > ```bash
 > pip install --upgrade rsl-rl-lib
 > ```
 
 > [!WARNING]
-> **`ModuleNotFoundError: No module named 'rsl_rl'`**
+> **`ModuleNotFoundError: No module named 'rsl_rl'`** — Reinstala todas las dependencias desde cero:
 > ```bash
 > pip install -r requirements.txt --force-reinstall
 > ```
 
-### No hay modelos para evaluar
+---
+
+### No hay modelos disponibles para evaluar
 
 **Error**: `Warning: No model files found`
 
-```bash
-# Primero entrena el modelo
-python train.py
+El directorio `logs/` no contiene ningún checkpoint. Primero ejecuta un entrenamiento completo:
 
-# Luego evalúa
+```bash
+python train.py
 python eval.py
 ```
 
 ---
 
 ## Variables de Entorno
+
+Si prefieres configurar el dispositivo a través de variables de entorno del sistema operativo en lugar de argumentos:
 
 ```bash
 # Windows
@@ -399,7 +433,7 @@ export TORCH_DEVICE=cuda
 | `tensorboard` | — | Visualización de métricas de entrenamiento |
 
 > [!WARNING]
-> Algunos paquetes pueden generar conflictos de versión entre sí. Si ocurren problemas de compatibilidad, reinstala usando el archivo original:
+> Algunos paquetes pueden generar conflictos de versión entre sí. Si encuentras incompatibilidades después de una instalación parcial, reinstala todo desde el archivo original:
 > ```bash
 > pip install -r requirements.txt --force-reinstall
 > ```
@@ -410,27 +444,27 @@ export TORCH_DEVICE=cuda
 
 ### Para entrenamientos más rápidos
 
-1. Aumentar el número de entornos (si hay VRAM disponible):
-   ```bash
-   python train.py -n 400 -d gpu
-   ```
-2. Usar GPU en lugar de CPU:
-   ```bash
+1. **Usar GPU** — es el cambio más impactante:
+```bash
    python train.py -d gpu
-   ```
-3. Reducir iteraciones para prototipado rápido:
-   ```bash
+```
+2. **Aumentar entornos paralelos** si tienes VRAM suficiente (más de 6 GB):
+```bash
+   python train.py -n 400 -d gpu
+```
+3. **Reducir iteraciones** para prototipado rápido (sin esperar convergencia completa):
+```bash
    python train.py --max_iterations 500
-   ```
+```
 
-### Para mejores resultados
+### Para mejores resultados finales
 
-1. Aumentar las iteraciones de entrenamiento:
-   ```bash
+1. **Aumentar las iteraciones** para que el currículo complete todas sus fases:
+```bash
    python train.py --max_iterations 3000
-   ```
-2. Reducir la tasa de aprendizaje en `train.py` para mayor estabilidad.
-3. Monitorear activamente las métricas en TensorBoard durante el entrenamiento.
+```
+2. **Reducir la tasa de aprendizaje** en `train.py` si el entrenamiento es inestable (prueba con `0.0001`).
+3. **Monitorear TensorBoard activamente** durante el entrenamiento para detectar problemas temprano.
 
 ---
 
@@ -438,10 +472,10 @@ export TORCH_DEVICE=cuda
 
 | Archivo | Descripción |
 |---------|-------------|
-| `train.py` | Script principal de entrenamiento. Define la arquitectura neuronal, los parámetros de PPO y genera los checkpoints, videos y logs. |
-| `eval.py` | Carga un modelo entrenado desde `logs/` y ejecuta el comportamiento del robot en simulación. |
-| `environment.py` | Define la tarea, el espacio de estados/acciones y el currículo de 4 fases con recompensas personalizadas. |
-| `confi_cad.ipynb` | Notebook para visualizar y configurar el modelo CAD antes del entrenamiento. |
+| `train.py` | Script principal de entrenamiento. Define la arquitectura neuronal, los hiperparámetros de PPO y gestiona la generación de checkpoints, videos y logs. Aquí se configura el dispositivo (`cpu`/`gpu`) y el número de entornos. |
+| `eval.py` | Carga un modelo entrenado desde `logs/` y lo ejecuta en simulación para evaluar su comportamiento. |
+| `environment.py` | Define la tarea, el espacio de estados y acciones, el currículo de 4 fases y las funciones de recompensa. |
+| `confi_cad.ipynb` | Notebook para inspeccionar y configurar el modelo CAD antes de iniciar el entrenamiento. |
 
 ---
 
@@ -470,7 +504,7 @@ Para soporte, revisa en este orden:
 ## Licencia
 
 > [!NOTE]
-> Actualmente el proyecto no cuenta con una licencia oficial.
+> El proyecto no cuenta con una licencia oficial por el momento.
 
 ---
 

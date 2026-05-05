@@ -1,6 +1,9 @@
 import genesis as gs
 import torch
 from collections import deque
+from typing import Any
+import math
+import re
 
 from genesis_forge import ManagedEnvironment
 from genesis_forge.managers import (
@@ -20,7 +23,10 @@ from genesis_forge.genesis_env import GenesisEnv
 INITIAL_BODY_POSITION = [0.0, 0.0, 0.2340]
 INITIAL_QUAT = [1.0, 0.0, 0.0, 0.0]
 
-MAX_LIN_VEL = 0.7
+MAX_LIN_VEL = 0.5
+MAX_LAT_VEL = 0.5
+
+ARM_FIXED_POS = math.pi / 4
 
 
 def similar_to_default_scaled(env: GenesisEnv) -> torch.Tensor:
@@ -36,57 +42,69 @@ class BipedEnv(ManagedEnvironment):
 
     CURRICULUM = {
         1: {
-            "tracking_lin_vel":   2.0,  # Incremento agresivo para que 'avanzar' sea la prioridad #1
-            "tracking_ang_vel":   0.2,  # Reducido para que no se distraiga girando
-            "lin_vel_z":         -0.5,  # Casi sin penalización para que experimente sin miedo
-            "ang_vel_xy_l2":     -0.05,
-            "action_rate":       -0.01,
-            "similar_to_default":-0.05,
-            "body_acceleration": -0.01,
-            "stand_still":       -1.0,  # Penalización clara por no moverse
-            "feet_air_time":      0.2,  # Bajo, para que no se premie solo el gesto de levantar el pie
+            "tracking_lin_vel":    2.0,
+            "tracking_ang_vel":    0.2,
+            "lin_vel_z":          -0.5,
+            "ang_vel_xy_l2":      -0.05,
+            "action_rate":        -0.01,
+            "similar_to_default": -0.05,
+            "body_acceleration":  -0.01,
+            "stand_still":        -1.0,
+            "feet_air_time":       0.2,
         },
         2: {
-            "tracking_lin_vel":   3.5,
-            "tracking_ang_vel":   0.5,
-            "lin_vel_z":         -1.5,
-            "ang_vel_xy_l2":     -0.2,
-            "action_rate":       -0.02,
-            "similar_to_default":-0.1,
-            "body_acceleration": -0.05,
-            "stand_still":       -2.5,  # Obligamos al robot a salir de su zona de confort
-            "feet_air_time":      0.5,
+            "tracking_lin_vel":    3.5,
+            "tracking_ang_vel":    0.5,
+            "lin_vel_z":          -1.5,
+            "ang_vel_xy_l2":      -0.2,
+            "action_rate":        -0.02,
+            "similar_to_default": -0.1,
+            "body_acceleration":  -0.05,
+            "stand_still":        -2.5,
+            "feet_air_time":       0.5,
         },
         3: {
-            "tracking_lin_vel":   5.0,  # Premio muy alto por alcanzar la velocidad deseada
-            "tracking_ang_vel":   0.8,
-            "lin_vel_z":         -3.0,
-            "ang_vel_xy_l2":     -0.5,
-            "action_rate":       -0.05,
-            "similar_to_default":-0.2,
-            "body_acceleration": -0.2,
-            "stand_still":       -5.0,  # Estar quieto arruina el puntaje total
-            "feet_air_time":      1.0,  # El 'air time' ahora apoya una marcha ya establecida
+            "tracking_lin_vel":    5.0,
+            "tracking_ang_vel":    0.8,
+            "lin_vel_z":          -3.0,
+            "ang_vel_xy_l2":      -0.5,
+            "action_rate":        -0.05,
+            "similar_to_default": -0.2,
+            "body_acceleration":  -0.2,
+            "stand_still":        -5.0,
+            "feet_air_time":       1.0,
         },
         4: {
-            "tracking_lin_vel":   6.0,
-            "tracking_ang_vel":   1.0,
-            "lin_vel_z":         -5.0,  # Aquí ya exigimos que el avance sea limpio y sin saltos
-            "ang_vel_xy_l2":     -0.8,
-            "action_rate":       -0.1,
-            "similar_to_default":-0.3,
-            "body_acceleration": -0.5,
-            "stand_still":       -10.0, 
-            "feet_air_time":      1.2,
+            "tracking_lin_vel":    6.0,
+            "tracking_ang_vel":    1.0,
+            "lin_vel_z":          -5.0,
+            "ang_vel_xy_l2":      -0.8,
+            "action_rate":        -0.1,
+            "similar_to_default": -0.3,
+            "body_acceleration":  -0.5,
+            "stand_still":        -10.0,
+            "feet_air_time":       1.2,
+        },
+        5: {
+            "tracking_lin_vel":    7.0,
+            "tracking_ang_vel":    1.2,
+            "lin_vel_z":          -6.0,
+            "ang_vel_xy_l2":      -1.0,
+            "action_rate":        -0.15,
+            "similar_to_default": -0.4,
+            "body_acceleration":  -0.7,
+            "stand_still":        -12.0,
+            "feet_air_time":       1.5,
         },
     }
-
+ 
     PHASE_THRESHOLDS = {
         1: {"duration_s": 12.0, "tracking": 0.3},
         2: {"duration_s": 15.0, "tracking": 0.5},
         3: {"duration_s": 18.0, "tracking": 0.7},
+        4: {"duration_s": 20.0, "tracking": 0.8},
     }
-
+ 
     EVAL_WINDOW = 50
 
     def __init__(
@@ -106,6 +124,7 @@ class BipedEnv(ManagedEnvironment):
         self.curriculum_phase = 1
         self._ep_durations: deque[float] = deque(maxlen=self.EVAL_WINDOW)
         self._ep_tracking: deque[float]  = deque(maxlen=self.EVAL_WINDOW)
+        self._arm_dofs_idx: list[int] = []
 
         self.scene = gs.Scene(
             show_viewer=not headless,
@@ -181,9 +200,16 @@ class BipedEnv(ManagedEnvironment):
             },
             max_force={".*": 1.0},
         )
+        
+        arm_pattern = re.compile(r"(BD|BI)")
+        self._arm_dofs_idx = [
+            i for i, name in enumerate(self.actuator_manager.dofs_names)
+            if arm_pattern.search(name)
+        ]
 
         self.action_manager = PositionActionManager(
             self,
+            delay_step=1,
             scale=0.5,
             use_default_offset=True,
             actuator_manager=self.actuator_manager,
@@ -193,7 +219,7 @@ class BipedEnv(ManagedEnvironment):
             self,
             range={
                 "lin_vel_x": (0.0, MAX_LIN_VEL),
-                "lin_vel_y": (0.0, 0.0),  # Lateral movement disabled intentionally
+                "lin_vel_y": (0.0, 0.0),
                 "ang_vel_z": (-0.3, 0.3),
             },
             standing_probability=0.02,
@@ -314,7 +340,7 @@ class BipedEnv(ManagedEnvironment):
                     "fn": terminations.bad_orientation,
                     "params": {
                         "entity_manager": self.robot_manager,
-                        "limit_angle": 30.0,
+                        "limit_angle": 25.0,
                         "grace_steps": 5,
                     },
                 },
@@ -329,12 +355,6 @@ class BipedEnv(ManagedEnvironment):
                     "fn": lambda env: self.robot_manager.get_angular_velocity() # type: ignore
                                     + 0.05 * torch.randn_like(
                                         self.robot_manager.get_angular_velocity()
-                                    ),
-                },
-                "linear_velocity": {
-                    "fn": lambda env: self.robot_manager.get_linear_velocity() 
-                                    + 0.05 * torch.randn_like(
-                                        self.robot_manager.get_linear_velocity()
                                     ),
                 },
                 "projected_gravity": {
@@ -353,9 +373,33 @@ class BipedEnv(ManagedEnvironment):
         p = self.CURRICULUM[phase]
         for name, weight in p.items():
             self.reward_manager.cfg[name].weight = weight
-
+        if phase == 5:
+            self.velocity_command.range["lin_vel_y"] = (-MAX_LAT_VEL, MAX_LAT_VEL) # type: ignore
+            print(
+                f"\n{'--'*60}\n"
+                f"  FASE 5: brazos (BD|BI) fijados a {math.degrees(ARM_FIXED_POS):.0f}° ({ARM_FIXED_POS:.4f} rad)\n"
+                f"  Movimiento lateral habilitado: ±{MAX_LAT_VEL} m/s\n"
+                f"{'--'*60}\n"
+            )
+    def step(self, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict[str, Any]]:
+            result = super().step(actions)
+    
+            # En fase 5 los codos se mantienen fijos a ARM_FIXED_POS cada step,
+            # sobreescribiendo lo que la política haya enviado para esos DOFs.
+            if self.curriculum_phase >= 5 and self._arm_dofs_idx:
+                arm_global_idx = [
+                    self.actuator_manager.dofs_idx[i] for i in self._arm_dofs_idx
+                ]
+                pos = torch.full(
+                    (self.num_envs, len(arm_global_idx)),
+                    ARM_FIXED_POS,
+                    device=actions.device,
+                )
+                self.actuator_manager.set_dofs_position(pos, arm_global_idx) # type: ignore
+    
+            return result
     def _check_curriculum_advance(self):
-        if self.curriculum_phase >= 4:
+        if self.curriculum_phase >= 5:
             return
         if len(self._ep_durations) < self.EVAL_WINDOW:
             return
@@ -383,8 +427,8 @@ class BipedEnv(ManagedEnvironment):
         self._ep_tracking.append(tracking)
         self._check_curriculum_advance()
 
-    def reset(self, envs_idx=None):
-        if envs_idx is not None and len(envs_idx) > 0:
-            durations = self.episode_length[envs_idx].float() * self.dt
+    def reset(self, env_ids=None):
+        if env_ids is not None and len(env_ids) > 0:
+            durations = self.episode_length[env_ids].float() * self.dt
             self.on_episode_end(durations.mean().item())
-        return super().reset(envs_idx)
+        return super().reset(env_ids)
