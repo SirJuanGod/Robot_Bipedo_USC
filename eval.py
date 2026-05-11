@@ -7,7 +7,7 @@ from importlib import metadata
 import genesis as gs
 
 from genesis_forge.wrappers import RslRlWrapper
-from environment import BipedEnv
+from environment import BipedoEnv
 
 try:
     try:
@@ -66,7 +66,7 @@ def main():
     model = get_latest_model(log_path)
 
     # Setup environment
-    env = BipedEnv(num_envs=1, headless=False)
+    env = BipedoEnv(num_envs=1, headless=False)
     env = RslRlWrapper(env)
     env.build()
     env.reset()

@@ -113,7 +113,7 @@ Define el entorno de simulación del robot bípedo con los siguientes parámetro
 | Parámetro | Valor |
 |-----------|-------|
 | Posición inicial | `[0.0, 0.0, 0.2340]` metros |
-| Velocidad máxima | `0.3` m/s |
+| Velocidad máxima | `0.3+` m/s |
 | Dimensiones de observación | `25` (ángulos articulares, velocidades, comandos) |
 | Fases del currículo | 4 fases progresivas |
 

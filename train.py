@@ -11,8 +11,7 @@ from genesis_forge.wrappers import (
     VideoWrapper,
     RslRlWrapper,
 )
-from environment import BipedEnv
-
+from environment import BipedoEnv
 try:
     try:
         if metadata.version("rsl-rl"):
@@ -27,8 +26,8 @@ from rsl_rl.runners import OnPolicyRunner
 EXPERIMENT_NAME = "bipedo-usc-ppo-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-n", "--num_envs", type=int, default=500)
-parser.add_argument("--max_iterations", type=int, default=5000)
+parser.add_argument("-n", "--num_envs", type=int, default=1000)
+parser.add_argument("--max_iterations", type=int, default=2000)
 parser.add_argument("-d", "--device", type=str, default="cpu")
 parser.add_argument("-e", "--exp_name", type=str, default=EXPERIMENT_NAME)
 args = parser.parse_args()
@@ -85,7 +84,7 @@ def training_cfg(exp_name: str, max_iterations: int):
         },
         "runner_class_name": "OnPolicyRunner",
         "seed": 1,
-        "num_steps_per_env": 250,
+        "num_steps_per_env": 24,
         "save_interval": 100,
         "empirical_normalization": None,
         "obs_groups": {"actor": ["policy"], "critic": ["policy"]},
@@ -118,7 +117,7 @@ def main():
     )
 
     # Create environment
-    env = BipedEnv(num_envs=args.num_envs, headless=True)
+    env = BipedoEnv(num_envs=args.num_envs, headless=True)
 
     # Record videos in regular intervals
     env = VideoWrapper(
