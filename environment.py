@@ -1,4 +1,5 @@
 import genesis as gs
+import torch
 
 from genesis_forge import ManagedEnvironment
 from genesis_forge.managers import (
@@ -57,9 +58,6 @@ class BipedoEnv(ManagedEnvironment):
             ),
         )
 
-        # Create terrain
-        self.terrain = self.scene.add_entity(gs.morphs.Plane()) #type: ignore
-
         # Robot
         self.robot = self.scene.add_entity( #type: ignore
             gs.morphs.MJCF(
@@ -68,6 +66,10 @@ class BipedoEnv(ManagedEnvironment):
                 quat=INITIAL_QUAT,
             ),
         )
+        
+        # Create terrain
+        self.terrain = self.scene.add_entity(gs.morphs.Plane()) #type: ignore
+
 
         # Camera, for headless video recording
         self.camera = self.scene.add_camera(
@@ -141,19 +143,12 @@ class BipedoEnv(ManagedEnvironment):
             },
         )
 
-        ##
-        # Contact managers
-        self.torso_contact_manager = ContactManager(
-            self,
-            link_names=["cbh_d"],
-        )
         self.feet_contact_manager = ContactManager(
             self,
             link_names=["ft_d", "ft_i"],
             track_air_time=True,
         )
-
-        ##
+        
         # Rewards
         RewardManager(
             self,
@@ -194,14 +189,14 @@ class BipedoEnv(ManagedEnvironment):
                     "fn": rewards.action_rate_l2,
                 },
                 "similar_to_default": {
-                    "weight": -0.05,
+                    "weight": -0.09,
                     "fn": rewards.dof_similar_to_default,
                     "params": {
                         "action_manager": self.action_manager,
                     },
                 },
                 "feet_air_time": {
-                    "weight": 2.0,
+                    "weight": 1.0,
                     "fn": rewards.feet_air_time,
                     "params": {
                         "time_threshold": 0.2,
@@ -224,25 +219,18 @@ class BipedoEnv(ManagedEnvironment):
                     "fn": terminations.timeout, #type: ignore
                     "time_out": True,
                 },
-                # Terminate if the robot's pitch and yaw angles are too large
-                "torso_contact": {
-                    "fn": terminations.contact_force,
-                    "params": {
-                        "contact_manager": self.torso_contact_manager,
-                    },
-                },
                 "torso_height": {
                     "fn": terminations.base_height_below_minimum,
                     "params": {
                         "entity_manager": self.robot_manager,
-                        "minimum_height": 0.17,
+                        "minimum_height": 0.15,
                     },
                 },
                 "bad_orientation": {
                     "fn": terminations.bad_orientation,
                     "params": {
                         "entity_manager": self.robot_manager,
-                        "limit_angle": 30.0,
+                        "limit_angle": 15.0,
                         "grace_steps": 5,
                     },
                 },

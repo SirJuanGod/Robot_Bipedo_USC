@@ -26,7 +26,7 @@ from rsl_rl.runners import OnPolicyRunner
 EXPERIMENT_NAME = "bipedo-usc-ppo-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-n", "--num_envs", type=int, default=1000)
+parser.add_argument("-n", "--num_envs", type=int, default=1500)
 parser.add_argument("--max_iterations", type=int, default=2000)
 parser.add_argument("-d", "--device", type=str, default="cpu")
 parser.add_argument("-e", "--exp_name", type=str, default=EXPERIMENT_NAME)
@@ -39,7 +39,7 @@ def training_cfg(exp_name: str, max_iterations: int):
             "class_name": "PPO",
             "clip_param": 0.2,
             "desired_kl": 0.01,
-            "entropy_coef": 0.008,
+            "entropy_coef": 0.01,
             "gamma": 0.99,
             "lam": 0.95,
             "learning_rate": 0.0003,
@@ -84,7 +84,7 @@ def training_cfg(exp_name: str, max_iterations: int):
         },
         "runner_class_name": "OnPolicyRunner",
         "seed": 1,
-        "num_steps_per_env": 24,
+        "num_steps_per_env": 34,
         "save_interval": 100,
         "empirical_normalization": None,
         "obs_groups": {"actor": ["policy"], "critic": ["policy"]},
@@ -98,7 +98,7 @@ def main():
     if args.device == "cpu":
         backend = gs.cpu # type: ignore
         torch.set_default_device("cpu")
-    gs.init(logging_level="warning", backend=backend, performance_mode=True)
+    gs.init(logging_level="warning", backend=gs.vulkan, performance_mode=True)
 
     # Logging directory
     log_base_dir = "./logs"
