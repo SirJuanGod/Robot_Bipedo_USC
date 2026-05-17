@@ -28,7 +28,7 @@ from rsl_rl.runners import OnPolicyRunner
 EXPERIMENT_NAME = "bipedo-usc-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-n", "--num_envs",        type=int,   default=1000)
+parser.add_argument("-n", "--num_envs",        type=int,   default=6000)
 parser.add_argument("--max_iterations",        type=int,   default=2000)
 parser.add_argument("-d", "--device",          type=str,   default="gpu")
 parser.add_argument("-e", "--exp_name",        type=str,   default=EXPERIMENT_NAME)
