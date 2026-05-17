@@ -1,25 +1,6 @@
-"""
-Gait Command Manager para robot bípedo — referenciado en Bipedo.xml
-(generado con onshape-to-robot)
-
-Nomenclatura extraída del MJCF:
-  Torso root   : cbh_d_2
-  Pie derecho  : ft_d   (cadena: kne_d → leg_i → ank_d → ft_d)
-  Pie izquierdo: ft_i   (cadena: kne_i → leg_d → ank_i → ft_i)
-  Tobillos     : ank_d, ank_i
-  Rodillas     : kne_d, kne_i
-
-Joints actuados (13 total):
-  Torso / brazo: BD, HD, HI, BI, HEAD
-  Pierna D     : CD, LD, KD, FD
-  Pierna I     : CI, LI, KI, FI
-"""
-
 import torch
 import genesis as gs
 from typing import TypedDict, Literal
-# RigidEntity NO se importa aquí al nivel de módulo porque Genesis debe estar
-# inicializado antes de importarlo. Se importa de forma diferida en build().
 from genesis_forge.managers.command.command_manager import CommandManager
 from genesis_forge.managers import ContactManager
 from genesis_forge.genesis_env import GenesisEnv
@@ -28,17 +9,12 @@ from genesis_forge.gamepads import Gamepad
 # ──────────────────────────────────────────────
 # Rangos globales de parámetros de marcha
 # ──────────────────────────────────────────────
-GAIT_PERIOD_RANGE    = [0.4, 0.8]   # segundos
-FOOT_CLEARANCE_RANGE = [0.05, 0.20] # metros
+GAIT_PERIOD_RANGE    = [0.3, 0.6]
+FOOT_CLEARANCE_RANGE = [0.04, 0.24] 
 
 GaitName = Literal["walk", "run"]
 FootName = Literal["L", "R"]
 
-# ──────────────────────────────────────────────
-# Definición de marchas
-#   Ambas marchas usan fase anti-fase (L=0.0, R=0.5).
-#   La diferencia entre walk y run viene del periodo y clearance.
-# ──────────────────────────────────────────────
 GAIT_OFFSETS: dict[GaitName, dict[FootName, float]] = {
     "walk": {"L": 0.0, "R": 0.5},
     "run":  {"L": 0.0, "R": 0.5},
@@ -54,27 +30,11 @@ GAIT_CLEARANCE_HINTS: dict[GaitName, list[float]] = {
 
 
 class FootNames(TypedDict):
-    L: str   # link del pie izquierdo → "ft_i"
-    R: str   # link del pie derecho   → "ft_d"
+    L: str
+    R: str 
 
 
 class BipedGaitCommandManager(CommandManager):
-    """
-    Gestiona parámetros de marcha walk / run para el robot Bipedo.xml.
-
-    Produce:
-      foot_offset  (N, 2) — fase por pie [L, R]
-      foot_height  (N, 1) — clearance objetivo durante swing
-      gait_period  (N, 1) — duración del ciclo (s)
-      clock_input  (N, 4) — [sin_L, sin_R, cos_L, cos_R]
-
-    Instanciar con:
-        BipedGaitCommandManager(
-            env,
-            foot_names={"L": "ft_i", "R": "ft_d"},
-        )
-    """
-
     def __init__(
         self,
         env: GenesisEnv,
@@ -86,13 +46,14 @@ class BipedGaitCommandManager(CommandManager):
 
         self._robot_entity_attr = robot_entity_attr
         self._foot_names        = foot_names
-        self.foot_links         = []           # [link_L(ft_i), link_R(ft_d)]
+        self.foot_links         = []          
         self._gamepad: Gamepad | None = None
         self._gamepad_btn_pressed = False
         self._gamepad_gait_idx    = 0
 
-        # Estado del currículo
         self._num_gaits         = 1
+        self._gait_period_range = [(GAIT_PERIOD_RANGE[0] + GAIT_PERIOD_RANGE[1]) / 2] * 2
+        self._foot_clearance_range = [FOOT_CLEARANCE_RANGE[0]] * 2
         self._all_gaits_learned = False
 
         N = env.num_envs
@@ -104,20 +65,11 @@ class BipedGaitCommandManager(CommandManager):
         self.clock_input    = torch.zeros((N, 4), dtype=torch.float, device=gs.device)
         self._gait_selected = torch.zeros(N, dtype=torch.long, device=gs.device)
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # Propiedad pública
-    # ──────────────────────────────────────────────────────────────────────────
-
     @property
     def command(self) -> torch.Tensor:
-        """[foot_offset(2), foot_height(1), gait_period(1)] → (N, 4)"""
         if self._gamepad is not None:
             self._process_gamepad_input()
         return torch.cat([self.foot_offset, self.foot_height, self.gait_period], dim=-1)
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # Currículo
-    # ──────────────────────────────────────────────────────────────────────────
 
     def increment_num_gaits(self):
         if self._all_gaits_learned:
@@ -131,24 +83,30 @@ class BipedGaitCommandManager(CommandManager):
             print(f"📈 Currículo: desbloqueada marcha '{new_gait}' ({self._num_gaits}/{len(GAIT_OFFSETS)})")
 
     def increment_gait_period_range(self):
-        """Mantenido por compatibilidad con el entorno — los hints por marcha lo controlan."""
-        pass
+        
+        self._gait_period_range[0] = max(
+            self._gait_period_range[0] - 0.05, GAIT_PERIOD_RANGE[0]
+        )
+        self._gait_period_range[1] = min(
+            self._gait_period_range[1] + 0.05, GAIT_PERIOD_RANGE[1]
+        )
 
     def increment_foot_clearance_range(self):
-        """Mantenido por compatibilidad con el entorno — los hints por marcha lo controlan."""
-        pass
+        
+        self._foot_clearance_range[0] = max(
+            self._foot_clearance_range[0] - 0.01, FOOT_CLEARANCE_RANGE[0]
+        )
+        self._foot_clearance_range[1] = min(
+            self._foot_clearance_range[1] + 0.01, FOOT_CLEARANCE_RANGE[1]
+        )
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # Ciclo de vida
-    # ──────────────────────────────────────────────────────────────────────────
 
     def build(self):
-        # Import diferido: Genesis debe estar inicializado antes de este punto.
-        from genesis.engine.entities import RigidEntity  # noqa: PLC0415
         super().build()
-        robot: RigidEntity = getattr(self.env, self._robot_entity_attr)
-        for key in ("L", "R"):
-            self.foot_links.append(robot.get_link(self._foot_names[key]))
+        robot: RigidEntity = getattr(self.env, self._robot_entity_attr) #type: ignore
+        for i, key in enumerate(("L", "R")):
+            foot_link_name = self._foot_names[key]
+            self.foot_links.insert(i, robot.get_link(foot_link_name))
 
     def resample_command(self, env_ids: list[int]):
         if self._gamepad is not None:
@@ -177,7 +135,7 @@ class BipedGaitCommandManager(CommandManager):
         self.gait_time  = (self.gait_time + self.env.dt) % self.gait_period
         self.gait_phase = self.gait_time / self.gait_period
 
-        for i in range(2):  # 0 = ft_i (L), 1 = ft_d (R)
+        for i in range(2): 
             foot_phase = (self.gait_phase + self.foot_offset[:, i].unsqueeze(1)) % 1.0
             self.clock_input[:, i]     = torch.sin(2 * torch.pi * foot_phase).squeeze(-1)
             self.clock_input[:, i + 2] = torch.cos(2 * torch.pi * foot_phase).squeeze(-1)
@@ -191,7 +149,6 @@ class BipedGaitCommandManager(CommandManager):
         self.gait_phase[env_ids]  = 0.0
 
     def observation(self, env: GenesisEnv) -> torch.Tensor:
-        """[command(4), clock_input(4)] → (N, 8)"""
         return torch.cat([self.command, self.clock_input], dim=-1)
 
     def use_gamepad(self, gamepad: Gamepad):
@@ -200,46 +157,33 @@ class BipedGaitCommandManager(CommandManager):
         self._gamepad_gait_idx = 0
         self._gamepad_select_gait(list(GAIT_OFFSETS.keys())[0])
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # Recompensas
-    # ──────────────────────────────────────────────────────────────────────────
+## Recompensas
 
     def foot_height_reward(self, env: GenesisEnv, sensitivity: float = 0.1) -> torch.Tensor:
-        """
-        Penaliza el error de clearance del pie durante el swing,
-        ponderado por la velocidad XY del pie (ft_i y ft_d).
-        """
+
         link_idx    = [f.idx_local for f in self.foot_links]
-        foot_vel    = env.robot.get_links_vel(links_idx_local=link_idx)   # (N, 2, 3)
+        foot_vel    = env.robot.get_links_vel(links_idx_local=link_idx)   # (N, 2, 3)   
         foot_pos    = env.robot.get_links_pos(links_idx_local=link_idx)   # (N, 2, 3)
 
-        vel_xy_norm = torch.norm(foot_vel[:, :, :2], dim=-1)              # (N, 2) #type: ignore
+        foot_vel_xy_norm = torch.norm(foot_vel[:, :, :2], dim=-1)              # (N, 2) #type: ignore
         height_err  = torch.square(foot_pos[:, :, 2] - self.foot_height)  # (N, 2)
 
-        clearance_error = torch.sum(vel_xy_norm * height_err, dim=-1)     # (N,)
+        clearance_error = torch.sum(foot_vel_xy_norm * height_err, dim=-1)     # (N,)
         return torch.exp(-clearance_error / sensitivity)
 
     def gait_phase_reward(self, env: GenesisEnv, contact_manager: ContactManager) -> torch.Tensor:
-        """
-        Swing  [0.0, 0.5) → penaliza fuerza de contacto (pie en el aire).
-        Stance [0.5, 1.0) → penaliza velocidad del pie   (pie plantado).
-
-        Retorna exp(r_ft_i + r_ft_d).
-        """
+        
         r_L = self._foot_phase_reward(0, contact_manager)   # ft_i
         r_R = self._foot_phase_reward(1, contact_manager)   # ft_d
         return torch.exp(r_L.flatten() + r_R.flatten())
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # Privados
-    # ──────────────────────────────────────────────────────────────────────────
-
     def _foot_phase_reward(self, foot_idx: int, contact_manager: ContactManager) -> torch.Tensor:
+        
         link = self.foot_links[foot_idx]
         N    = self.env.num_envs
 
-        force_weight = torch.zeros(N, 1, device=gs.device)
-        vel_weight   = torch.zeros(N, 1, device=gs.device)
+        force_weight = torch.zeros(N, 1, dtype=torch.float, device=gs.device)
+        vel_weight   = torch.zeros(N, 1, dtype=torch.float, device=gs.device)
 
         force    = torch.norm(contact_manager.get_contact_forces(link.idx), dim=-1).view(-1, 1)
         velocity = torch.norm(link.get_vel(), dim=-1).view(-1, 1)
@@ -255,8 +199,13 @@ class BipedGaitCommandManager(CommandManager):
 
         return vel_weight * velocity + force_weight * force
 
-    def _set_gait(self, gait_name: GaitName, env_ids: torch.Tensor):
+    def _set_gait(self, gait_name: GaitName, env_ids: torch.Tensor | None = None):
+        
+        if env_ids is None:
+            env_ids = torch.arange(self.env.num_envs, device=gs.device)
+            
         offsets = GAIT_OFFSETS[gait_name]
+            
         self.foot_offset[env_ids, 0] = offsets["L"]   # ft_i
         self.foot_offset[env_ids, 1] = offsets["R"]   # ft_d
 
