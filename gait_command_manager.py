@@ -1,6 +1,25 @@
+"""
+Gait Command Manager para robot bípedo — referenciado en Bipedo.xml
+(generado con onshape-to-robot)
+
+Nomenclatura extraída del MJCF:
+  Torso root   : cbh_d_2
+  Pie derecho  : ft_d   (cadena: kne_d → leg_i → ank_d → ft_d)
+  Pie izquierdo: ft_i   (cadena: kne_i → leg_d → ank_i → ft_i)
+  Tobillos     : ank_d, ank_i
+  Rodillas     : kne_d, kne_i
+
+Joints actuados (13 total):
+  Torso / brazo: BD, HD, HI, BI, HEAD
+  Pierna D     : CD, LD, KD, FD
+  Pierna I     : CI, LI, KI, FI
+"""
+
 import torch
 import genesis as gs
 from typing import TypedDict, Literal
+# RigidEntity NO se importa aquí al nivel de módulo porque Genesis debe estar
+# inicializado antes de importarlo. Se importa de forma diferida en build().
 from genesis_forge.managers.command.command_manager import CommandManager
 from genesis_forge.managers import ContactManager
 from genesis_forge.genesis_env import GenesisEnv
@@ -15,6 +34,11 @@ FOOT_CLEARANCE_RANGE = [0.05, 0.20] # metros
 GaitName = Literal["walk", "run"]
 FootName = Literal["L", "R"]
 
+# ──────────────────────────────────────────────
+# Definición de marchas
+#   Ambas marchas usan fase anti-fase (L=0.0, R=0.5).
+#   La diferencia entre walk y run viene del periodo y clearance.
+# ──────────────────────────────────────────────
 GAIT_OFFSETS: dict[GaitName, dict[FootName, float]] = {
     "walk": {"L": 0.0, "R": 0.5},
     "run":  {"L": 0.0, "R": 0.5},
@@ -30,12 +54,28 @@ GAIT_CLEARANCE_HINTS: dict[GaitName, list[float]] = {
 
 
 class FootNames(TypedDict):
-    L: str   
-    R: str   
+    L: str   # link del pie izquierdo → "ft_i"
+    R: str   # link del pie derecho   → "ft_d"
 
 
 class BipedGaitCommandManager(CommandManager):
-   def __init__(
+    """
+    Gestiona parámetros de marcha walk / run para el robot Bipedo.xml.
+
+    Produce:
+      foot_offset  (N, 2) — fase por pie [L, R]
+      foot_height  (N, 1) — clearance objetivo durante swing
+      gait_period  (N, 1) — duración del ciclo (s)
+      clock_input  (N, 4) — [sin_L, sin_R, cos_L, cos_R]
+
+    Instanciar con:
+        BipedGaitCommandManager(
+            env,
+            foot_names={"L": "ft_i", "R": "ft_d"},
+        )
+    """
+
+    def __init__(
         self,
         env: GenesisEnv,
         foot_names: FootNames,
@@ -46,7 +86,7 @@ class BipedGaitCommandManager(CommandManager):
 
         self._robot_entity_attr = robot_entity_attr
         self._foot_names        = foot_names
-        self.foot_links         = []
+        self.foot_links         = []           # [link_L(ft_i), link_R(ft_d)]
         self._gamepad: Gamepad | None = None
         self._gamepad_btn_pressed = False
         self._gamepad_gait_idx    = 0
