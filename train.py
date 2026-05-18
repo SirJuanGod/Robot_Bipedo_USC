@@ -45,10 +45,10 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
             "class_name": "PPO",
             "clip_param":                    0.2,
             "desired_kl":                    0.01,
-            "entropy_coef":                  0.05,
+            "entropy_coef":                  0.01,
             "gamma":                         0.99,
             "lam":                           0.95,
-            "learning_rate":                 4e-4,
+            "learning_rate":                 1e-4,
             "max_grad_norm":                 1.0,
             "num_learning_epochs":           5,
             "num_mini_batches":              4,
@@ -63,18 +63,18 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
 
         "actor": {
             "class_name":      "MLPModel",
-            "hidden_dims":     [256, 128, 64],
+            "hidden_dims":     [512,256, 128],
             "activation":      "elu",
             "obs_normalization": True,
             "distribution_cfg": {
                 "class_name": "GaussianDistribution",
-                "init_std":   1.0,
+                "init_std":   0.002,
             },
         },
 
         "critic": {
             "class_name":      "MLPModel",
-            "hidden_dims":     [512, 256, 128, 64],
+            "hidden_dims":     [1024, 512, 256, 128],
             "activation":      "elu",
             "obs_normalization": True,
         },
