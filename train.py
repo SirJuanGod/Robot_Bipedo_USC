@@ -29,13 +29,13 @@ EXPERIMENT_NAME = "bipedo-usc-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
 parser.add_argument("-n", "--num_envs",        type=int,   default=2000)
-parser.add_argument("--max_iterations",        type=int,   default=2000)
+parser.add_argument("--max_iterations",        type=int,   default=4000)
 parser.add_argument("-d", "--device",          type=str,   default="gpu")
 parser.add_argument("-e", "--exp_name",        type=str,   default=EXPERIMENT_NAME)
 parser.add_argument("--resume",                action="store_true")
 parser.add_argument("--resume_path",           type=str,   default=None)
 parser.add_argument("--record_interval",       type=int,   default=100)
-parser.add_argument("--no_video",              action="store_true", default=True,
+parser.add_argument("--no_video",              action="store_true", default=False,
                     help="Desactiva grabacion de video")
 args = parser.parse_args()
 
@@ -48,7 +48,7 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
             "entropy_coef":                  0.05,
             "gamma":                         0.99,
             "lam":                           0.95,
-            "learning_rate":                 3e-4,
+            "learning_rate":                 4e-4,
             "max_grad_norm":                 1.0,
             "num_learning_epochs":           5,
             "num_mini_batches":              4,
@@ -98,7 +98,7 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
         "runner_class_name": "OnPolicyRunner",
 
         "seed": 1,
-        "num_steps_per_env":     max(24, round(144_000 / num_envs)),
+        "num_steps_per_env":     max(48, round(288_000 / num_envs)),
         "save_interval":         100,
         "empirical_normalization": None,
         "torch_compile_mode":    None,

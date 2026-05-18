@@ -211,7 +211,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "fn": self.gait_command_manager.foot_height_reward,
                 },
                 "tracking_lin_vel": {
-                    "weight": 1.0,
+                    "weight": 1.5,
                     "fn": rewards.command_tracking_lin_vel,
                     "params": {
                         "vel_cmd_manager": self.velocity_command,
@@ -252,10 +252,10 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"entity_manager": self.robot_manager},
                 },
                 "base_height_target": {
-                    "weight": -2.0,
+                    "weight": -4.0,
                     "fn": rewards.base_height,
                     "params": {
-                        "target_height": HEIGHT_OFFSET - 0.05,
+                        "target_height": HEIGHT_OFFSET - 0.06,
                         "entity_attr":   "robot",
                     },
                 },
