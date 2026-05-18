@@ -10,7 +10,7 @@ from genesis_forge.gamepads import Gamepad
 # Rangos globales de parámetros de marcha
 # ──────────────────────────────────────────────
 GAIT_PERIOD_RANGE    = [0.3, 0.6]
-FOOT_CLEARANCE_RANGE = [0.04, 0.24] 
+FOOT_CLEARANCE_RANGE = [0.02, 0.08] 
 
 GaitName = Literal["walk", "run"]
 FootName = Literal["L", "R"]
@@ -20,12 +20,12 @@ GAIT_OFFSETS: dict[GaitName, dict[FootName, float]] = {
     "run":  {"L": 0.0, "R": 0.5},
 }
 GAIT_PERIOD_HINTS: dict[GaitName, list[float]] = {
-    "walk": [0.6, 0.8],
-    "run":  [0.4, 0.6],
+    "walk": [0.55, 0.75],
+    "run":  [0.25, 0.40],
 }
 GAIT_CLEARANCE_HINTS: dict[GaitName, list[float]] = {
-    "walk": [0.05, 0.12],
-    "run":  [0.10, 0.20],
+    "walk": [0.04, 0.10],
+    "run":  [0.12, 0.22],
 }
 
 

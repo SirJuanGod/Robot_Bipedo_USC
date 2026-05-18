@@ -26,6 +26,8 @@ CURRICULUM_CHECK_EVERY_STEPS = 50
 NOISE_SCALES = {
     "ang_vel": 0.05,   # rad/s  — giroscopio IMU
     "gravity":  0.05,  # u.n.   — gravedad proyectada
+    "dof_pos": 0.01,   # rad   — encoder abs/rel típico
+    "dof_vel": 0.50,   # rad/s — derivada discreta muy ruidosa en hardware real
 }
 
 
@@ -118,8 +120,8 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             joint_names=["BD", "HD", "HI", "BI", "HEAD",
                          "CD", "LD", "KD", "FD",
                          "CI", "LI", "KI", "FI"],
-            kp=NoisyValue(50.0, 0.15),
-            kv=NoisyValue(1.0, 0.15),
+            kp=NoisyValue(20.0, 0.15),
+            kv=NoisyValue(0.4, 0.15),
             damping=NoisyValue(0.5, 0.25),
             frictionloss=NoisyValue(0.15, 0.1),
             default_pos={
@@ -138,12 +140,15 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 "FI":  NoisyValue(0.0157, 0.01),
             },
             max_force={
-                ".*": 1.0
+                "BD": 2.0, "HD": 2.0, "HI": 2.0, "BI": 2.0,
+                "HEAD": 1.0,
+                "CD": 3.0, "LD": 3.0, "KD": 3.0, "FD": 2.5,
+                "CI": 3.0, "LI": 3.0, "KI": 3.0, "FI": 2.5,
             },
         )
         self.action_manager = PositionActionManager(
             self,
-            scale=0.25,
+            scale=0.4,
             use_default_offset=True,
             actuator_manager=self.actuator_manager,
         )
@@ -177,7 +182,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 "lin_vel_y": [0.0, 0.0],
                 "ang_vel_z": [-0.5, 0.5],
             },
-            standing_probability=0.00,
+            standing_probability=0.15,
             resample_time_sec=3.0,
             debug_visualizer=True,
             debug_visualizer_cfg={"envs_idx": [0], "arrow_offset": 0.12}, #type: ignore
@@ -222,7 +227,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     },
                 },
                 "feet_air_time": {
-                    "weight": 2.0,
+                    "weight": 1.5,
                     "fn": rewards.feet_air_time,
                     "params": {
                         "time_threshold":     0.2,
@@ -232,12 +237,12 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     },
                 },
                 "lin_vel_z": {
-                    "weight": -2.0,
+                    "weight": -0.3,
                     "fn": rewards.lin_vel_z_l2,
                     "params": {"entity_manager": self.robot_manager},
                 },
                 "ang_vel_xy_l2": {
-                    "weight": -0.05,
+                    "weight": -0.5,
                     "fn": rewards.ang_vel_xy_l2,
                     "params": {"entity_manager": self.robot_manager},
                 },
@@ -247,7 +252,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"entity_manager": self.robot_manager},
                 },
                 "base_height_target": {
-                    "weight": -25.0,
+                    "weight": -2.0,
                     "fn": rewards.base_height,
                     "params": {
                         "target_height": HEIGHT_OFFSET - 0.05,
@@ -255,16 +260,16 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     },
                 },
                 "action_rate": {
-                    "weight": -0.015,
+                    "weight": -0.025,
                     "fn": rewards.action_rate_l2,
                 },
                 "similar_to_default": {
-                    "weight": -0.05,
+                    "weight": -0.01,
                     "fn": rewards.dof_similar_to_default,
                     "params": {"action_manager": self.action_manager},
                 },
                 "bad_contact": {
-                    "weight": -1.5,
+                    "weight": -1.0,
                     "fn": rewards.contact_force,
                     "params": {"contact_manager": self.knee_contact_manager},
                 },
@@ -289,7 +294,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 "fall_over": {
                     "fn": terminations.bad_orientation,
                     "params": {
-                        "limit_angle":    20.0,
+                        "limit_angle":    45.0,
                         "entity_manager": self.robot_manager,
                     },
                 },
