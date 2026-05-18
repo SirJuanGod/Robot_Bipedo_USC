@@ -1,19 +1,21 @@
 {
   "url": "https://cad.onshape.com/documents/c4b361cf4ba327d1f57e882d/w/2ee79dd7520cc42214465bb5/e/7518343c4784b4c1e8e306be",
   "output_format": "mujoco",
-  "joint_propieties":{
-      "*":{
-          "actuated": true,
-          "forcerange":10.0,
-          "limits":[-1.5708, 1.5708],
-          "frictionloss": 1.0,
-          "kv": 3.0,
-          "kp": 30
-      }
+  "joint_properties": {
+    "*": {
+      "actuated": true,
+      "forcerange": 10.0,
+      "limits": [
+        -1.5708,
+        1.5708
+      ],
+      "frictionloss": 1.0,
+      "kv": 3.0,
+      "kp": 30.0
+    }
   },
   "output_filename": "Bipedo",
   "use_visual_meshes": true,
   "use_collision_meshes": true,
   "simplify_collision_meshes": true
-  
 }
