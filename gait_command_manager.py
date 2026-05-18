@@ -162,42 +162,45 @@ class BipedGaitCommandManager(CommandManager):
     def foot_height_reward(self, env: GenesisEnv, sensitivity: float = 0.1) -> torch.Tensor:
 
         link_idx    = [f.idx_local for f in self.foot_links]
-        foot_vel    = env.robot.get_links_vel(links_idx_local=link_idx)   # (N, 2, 3)   
+        foot_vel    = env.robot.get_links_vel(links_idx_local=link_idx)   # (N, 2, 3)
         foot_pos    = env.robot.get_links_pos(links_idx_local=link_idx)   # (N, 2, 3)
 
-        foot_vel_xy_norm = torch.norm(foot_vel[:, :, :2], dim=-1)              # (N, 2) #type: ignore
+        foot_vel_xy_norm = torch.norm(foot_vel[:, :, :2], dim=-1)         # (N, 2) #type: ignore
         height_err  = torch.square(foot_pos[:, :, 2] - self.foot_height)  # (N, 2)
 
-        clearance_error = torch.sum(foot_vel_xy_norm * height_err, dim=-1)     # (N,)
-        return torch.exp(-clearance_error / sensitivity)
+        clearance_error = torch.sum(foot_vel_xy_norm * height_err, dim=-1)  # (N,)
+        return torch.exp(-clearance_error / sensitivity)                     # (N,) en (0,1]
 
     def gait_phase_reward(self, env: GenesisEnv, contact_manager: ContactManager) -> torch.Tensor:
-        
+        # r_L, r_R en [-1, 0] — suma en [-2, 0] — exp en (exp(-2), 1] ~ (0.13, 1]
         r_L = self._foot_phase_reward(0, contact_manager)   # ft_i
         r_R = self._foot_phase_reward(1, contact_manager)   # ft_d
-        return torch.exp(r_L.flatten() + r_R.flatten())
+        return torch.exp(r_L.flatten() + r_R.flatten())     # (N,) en (0.13, 1]
 
     def _foot_phase_reward(self, foot_idx: int, contact_manager: ContactManager) -> torch.Tensor:
-        
+        # Retorna [-1, 0] por pie, normalizado para que fuerza y velocidad sean comparables.
+        # swing  (phase < 0.5): penaliza fuerza de contacto
+        # stance (phase >= 0.5): penaliza velocidad del pie
         link = self.foot_links[foot_idx]
         N    = self.env.num_envs
 
-        force_weight = torch.zeros(N, 1, dtype=torch.float, device=gs.device)
-        vel_weight   = torch.zeros(N, 1, dtype=torch.float, device=gs.device)
+        F_MAX = 20.0   # N   — fuerza maxima esperada (~2 kg robot)
+        V_MAX =  1.5   # m/s — velocidad maxima del pie en stance
 
         force    = torch.norm(contact_manager.get_contact_forces(link.idx), dim=-1).view(-1, 1)
         velocity = torch.norm(link.get_vel(), dim=-1).view(-1, 1)
+
+        force_n = torch.clamp(force / F_MAX, 0.0, 1.0)
+        vel_n   = torch.clamp(velocity / V_MAX, 0.0, 1.0)
 
         phase  = (self.gait_phase + self.foot_offset[:, foot_idx].unsqueeze(1)) % 1.0
         swing  = (phase < 0.5).squeeze(-1)
         stance = (phase >= 0.5).squeeze(-1)
 
-        force_weight[swing]  = -1.0
-        vel_weight[swing]    =  0.0
-        force_weight[stance] =  0.0
-        vel_weight[stance]   = -1.0
-
-        return vel_weight * velocity + force_weight * force
+        result = torch.zeros(N, 1, dtype=torch.float, device=gs.device)
+        result[swing]  = -force_n[swing]
+        result[stance] = -vel_n[stance]
+        return result   # en [-1, 0]
 
     def _set_gait(self, gait_name: GaitName, env_ids: torch.Tensor | None = None):
         

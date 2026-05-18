@@ -142,7 +142,7 @@ def reward_contact_binary_penalty(env, contact_manager, **kwargs) -> torch.Tenso
     Penalización suave por contacto no deseado. Resultado en [0, 1).
     Usa exponencial negativa para gradiente continuo en lugar de escalón binario.
     """
-    ids = contact_manager._local_link_ids
+    ids = contact_manager._link_ids
     if ids is None or len(ids) == 0:
         return torch.zeros(env.num_envs, device=gs.device)
     forces = contact_manager.get_contact_forces(ids.tolist())  # (N, num_links, 3)
@@ -171,6 +171,62 @@ def reward_imu_smoothness(env, entity_manager, max_val=10.0, **kwargs) -> torch.
     ang_vel = entity_manager.get_angular_velocity()  # (N, 3)
     omega_norm = torch.norm(ang_vel, dim=-1)
     return torch.clamp(omega_norm / max_val, 0.0, 1.0)
+
+
+def reward_base_height(env, entity_manager, target_height: float = 0.234, max_val: float = 0.1, **kwargs) -> torch.Tensor:
+    """
+    Penalización por alejarse de la altura objetivo del cuerpo.
+    Evita que el robot aprenda a agacharse o arrastrarse.
+    target_height = HEIGHT_OFFSET = 0.234 m
+    Resultado en [0, 1].
+    """
+    height = entity_manager.base_pos[:, 2]  # (N,)
+    error  = (height - target_height) ** 2
+    return torch.clamp(error / (max_val ** 2), 0.0, 1.0)
+
+
+def reward_arm_symmetry(env, target: float = 0.943, max_val: float = 0.3, **kwargs) -> torch.Tensor:
+    """
+    Penaliza alejarse de la postura de brazos durante la caminata.
+    Target: BD = +0.943 rad, BI = -0.943 rad (antisimetrico).
+    BD no puede usarse en default_pos del simulador sin explotar,
+    por eso se maneja aqui independientemente.
+    Resultado en [0, 1].
+    """
+    dof_pos   = env.action_manager.get_dofs_position()  # (N, num_dof)
+    dof_names = env.actuator_manager.dofs_names
+
+    bd_idx = dof_names.index("BD")
+    bi_idx = dof_names.index("BI")
+
+    bd = dof_pos[:, bd_idx]   # (N,)
+    bi = dof_pos[:, bi_idx]   # (N,)
+
+    error_bd = (bd - target) ** 2   # quiere BD = +target
+    error_bi = (bi + target) ** 2   # quiere BI = -target
+    error = (error_bd + error_bi) / 2.0
+    return torch.clamp(error / (max_val ** 2), 0.0, 1.0)
+
+
+def reward_dof_pos_deviation(env, max_val: float = 0.5, **kwargs) -> torch.Tensor:
+    """
+    Penalización por alejarse de la posición articular por defecto.
+    Excluye BD y BI — tienen su propia recompensa arm_symmetry con
+    targets distintos al default_pos del simulador.
+    Resultado en [0, 1].
+    """
+    dof_pos   = env.action_manager.get_dofs_position()  # (N, num_dof)
+    default   = env.action_manager.default_dofs_pos     # (N, num_dof)
+    dof_names = env.actuator_manager.dofs_names
+
+    exclude = {"BD", "BI"}
+    mask = torch.tensor(
+        [name not in exclude for name in dof_names],
+        dtype=torch.bool, device=dof_pos.device,
+    )
+    deviation = torch.sum(((dof_pos - default) ** 2)[:, mask], dim=-1)
+    num_dof   = mask.sum().item()
+    return torch.clamp(deviation / (num_dof * max_val ** 2), 0.0, 1.0)
 
 
 class BipedGaitTrainingEnv(ManagedEnvironment):
@@ -263,7 +319,24 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             damping=NoisyValue(0.5, 0.25),
             frictionloss=NoisyValue(0.15, 0.1),
             default_pos={
-                ".*": NoisyValue(0.0, 0.01),
+                # Posición base (simétrica)
+                "BD":   NoisyValue(0.0,  0.01),
+                "BI":   NoisyValue(-0.943,  0.01),
+                
+                # Pierna derecha
+                "CD":   NoisyValue(0.0,   0.01),
+                "LD":   NoisyValue(-0.22, 0.01),
+                "KD":   NoisyValue(-0.236, 0.01),
+                "FD":   NoisyValue(0.0157, 0.01),
+                
+                # Pierna izquierda
+                "CI":   NoisyValue(0.0,   0.01),
+                "LI":   NoisyValue(0.22,  0.01),
+                "KI":   NoisyValue(0.236, 0.01),
+                "FI":   NoisyValue(-0.0157, 0.01),
+                
+                # Cabeza
+                "HEAD": NoisyValue(0.0, 0.01),
             },
             max_force={
                 "BD": 2.0, "HD": 2.0, "HI": 2.0, "BI": 2.0,
@@ -419,6 +492,25 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "weight": -0.8,
                     "fn": reward_contact_binary_penalty,
                     "params": {"contact_manager": self.knee_contact_manager},
+                },
+                "base_height": {
+                    "weight": -1.2,
+                    "fn": reward_base_height,
+                    "params": {
+                        "entity_manager": self.robot_manager,
+                        "target_height":  HEIGHT_OFFSET,
+                        "max_val":        0.05,
+                    },
+                },
+                "arm_symmetry": {
+                    "weight": -1.0,
+                    "fn": reward_arm_symmetry,
+                    "params": {"max_val": 0.3},
+                },
+                "dof_pos_deviation": {
+                    "weight": -1.5,
+                    "fn": reward_dof_pos_deviation,
+                    "params": {"max_val": 0.5},
                 },
                 "lateral_drift": {
                     "weight": -0.3,

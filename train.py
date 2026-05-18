@@ -28,7 +28,7 @@ from rsl_rl.runners import OnPolicyRunner
 EXPERIMENT_NAME = "bipedo-usc-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-n", "--num_envs",        type=int,   default=10000)
+parser.add_argument("-n", "--num_envs",        type=int,   default=60000)
 parser.add_argument("--max_iterations",        type=int,   default=4000)
 parser.add_argument("-d", "--device",          type=str,   default="gpu")
 parser.add_argument("-e", "--exp_name",        type=str,   default=EXPERIMENT_NAME)
@@ -68,7 +68,7 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
             "obs_normalization": True,
             "distribution_cfg": {
                 "class_name": "GaussianDistribution",
-                "init_std":   0.1,
+                "init_std":   0.05,
             },
         },
 
