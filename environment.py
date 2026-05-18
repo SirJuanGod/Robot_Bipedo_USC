@@ -138,10 +138,17 @@ def reward_energy_penalty(env, max_val=1.5, **kwargs) -> torch.Tensor:
 
 
 def reward_contact_binary_penalty(env, contact_manager, **kwargs) -> torch.Tensor:
-    forces = contact_manager.get_contact_forces(contact_manager.local_link_ids)  # (N, num_links, 3)
-    force_norm = torch.norm(forces, dim=-1)        # (N, num_links)
-    max_force = force_norm.max(dim=-1).values      # (N,)  — peor link
-    return 1.0 - torch.exp(-max_force / 2.0)      # suave, en [0, 1)
+    """
+    Penalización suave por contacto no deseado. Resultado en [0, 1).
+    Usa exponencial negativa para gradiente continuo en lugar de escalón binario.
+    """
+    ids = contact_manager._local_link_ids
+    if ids is None or len(ids) == 0:
+        return torch.zeros(env.num_envs, device=gs.device)
+    forces = contact_manager.get_contact_forces(ids.tolist())  # (N, num_links, 3)
+    force_norm = torch.norm(forces, dim=-1)                    # (N, num_links)
+    max_force = force_norm.max(dim=-1).values                  # (N,)
+    return 1.0 - torch.exp(-max_force / 2.0)
 
 
 def reward_lateral_drift_penalty(env, entity_manager, vel_cmd_manager, max_val=0.3, **kwargs) -> torch.Tensor:
