@@ -30,9 +30,140 @@ NOISE_SCALES = {
     "dof_vel": 0.50,   # rad/s — derivada discreta muy ruidosa en hardware real
 }
 
+# ── Parámetros físicos del robot (del MJCF) ──────────────────────────────────
+ROBOT_MASS_KG     = 1.09     # masa total aproximada
+ROBOT_HEIGHT_M    = 0.234    # altura de pie
+LEG_LENGTH_M      = 0.084    # longitud del eslabón de pierna
+GRAVITY           = 9.81
+
 
 def _noisy(tensor: torch.Tensor, scale: float) -> torch.Tensor:
     return tensor + torch.randn_like(tensor) * scale
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Funciones de recompensa custom — normalizadas a [0, 1] o clipeadas
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def reward_alive_bonus(env, **kwargs) -> torch.Tensor:
+    """Bono constante por estar vivo. Incentiva supervivencia."""
+    return torch.ones(env.num_envs, device=gs.device)
+
+
+def reward_upright_stability(env, entity_manager, **kwargs) -> torch.Tensor:
+    """
+    Recompensa basada en la componente Z de la gravedad proyectada en el frame
+    del cuerpo (disponible desde el IMU).
+    
+    Si el robot está perfectamente vertical, projected_gravity = [0, 0, -1].
+    La componente Z será -1 → reward = 1.0
+    Si está de lado, Z → 0 → reward ≈ 0
+    Si está boca abajo, Z → +1 → reward = 0
+    
+    R = clamp(-g_z, 0, 1)^2   (cuadrático para penalizar más las inclinaciones)
+    """
+    proj_grav = entity_manager.get_projected_gravity()  # (N, 3)
+    gz = proj_grav[:, 2]  # negativo cuando está de pie
+    uprightness = torch.clamp(-gz, 0.0, 1.0)
+    return uprightness ** 2  # [0, 1]
+
+
+def reward_angular_velocity_penalty(env, entity_manager, max_val=5.0, **kwargs) -> torch.Tensor:
+    """
+    Penalización por velocidad angular en ejes X,Y (roll/pitch).
+    Normalizada: ||ω_xy||² / max_val² , clipeada a [0, 1].
+    
+    max_val=5.0 rad/s es un límite razonable para un robot de 23cm.
+    """
+    ang_vel = entity_manager.get_angular_velocity()  # (N, 3)
+    ang_vel_xy_sq = ang_vel[:, 0]**2 + ang_vel[:, 1]**2
+    return torch.clamp(ang_vel_xy_sq / (max_val ** 2), 0.0, 1.0)
+
+
+def reward_linear_vel_z_penalty(env, entity_manager, max_val=1.0, **kwargs) -> torch.Tensor:
+    """
+    Penalización por velocidad vertical del cuerpo.
+    Normalizada: vz² / max_val², clipeada a [0, 1].
+    """
+    lin_vel = entity_manager.get_linear_velocity()  # (N, 3)
+    vz_sq = lin_vel[:, 2] ** 2
+    return torch.clamp(vz_sq / (max_val ** 2), 0.0, 1.0)
+
+
+def reward_body_acceleration_penalty(env, entity_manager, max_val=20.0, **kwargs) -> torch.Tensor:
+    """
+    Penalización por aceleración del cuerpo (suavidad).
+    Computa aceleración lineal como Δv/dt entre steps.
+    Normalizada a [0, 1].
+    """
+    curr_vel = entity_manager.get_linear_velocity()  # (N, 3)
+    if not hasattr(env, '_prev_lin_vel') or env._prev_lin_vel is None:
+        env._prev_lin_vel = curr_vel.clone()
+        return torch.zeros(env.num_envs, device=gs.device)
+    
+    acc = (curr_vel - env._prev_lin_vel) / env.dt  # (N, 3)
+    env._prev_lin_vel = curr_vel.clone()
+    acc_norm = torch.norm(acc, dim=-1)  # (N,)
+    return torch.clamp(acc_norm / max_val, 0.0, 1.0)
+
+
+def reward_action_rate_penalty(env, max_val=2.0, **kwargs) -> torch.Tensor:
+    """
+    Penalización por cambios bruscos en las acciones (suavidad).
+    ||a_t - a_{t-1}||² normalizado por num_actions * max_val².
+    Resultado en [0, 1].
+    """
+    curr = env.action_manager.get_actions()
+    if not hasattr(env, '_prev_actions_reward') or env._prev_actions_reward is None:
+        env._prev_actions_reward = curr.clone()
+        return torch.zeros(env.num_envs, device=gs.device)
+    
+    prev = env._prev_actions_reward
+    diff_sq = torch.sum((curr - prev) ** 2, dim=-1)  # (N,)
+    num_act = curr.shape[-1]
+    env._prev_actions_reward = curr.clone()
+    return torch.clamp(diff_sq / (num_act * max_val ** 2), 0.0, 1.0)
+
+
+def reward_energy_penalty(env, max_val=1.5, **kwargs) -> torch.Tensor:
+    """
+    Penalización por gasto energético (magnitud de acciones).
+    Proxy de consumo de torque: ||a||² / (num_actions * max_val²).
+    Resultado en [0, 1].
+    """
+    actions = env.action_manager.get_actions()  # (N, num_dof)
+    act_sq = torch.sum(actions ** 2, dim=-1)
+    num_act = actions.shape[-1]
+    return torch.clamp(act_sq / (num_act * max_val ** 2), 0.0, 1.0)
+
+
+def reward_contact_binary_penalty(env, contact_manager, **kwargs) -> torch.Tensor:
+    forces = contact_manager.get_contact_forces(contact_manager.local_link_ids)  # (N, num_links, 3)
+    force_norm = torch.norm(forces, dim=-1)        # (N, num_links)
+    max_force = force_norm.max(dim=-1).values      # (N,)  — peor link
+    return 1.0 - torch.exp(-max_force / 2.0)      # suave, en [0, 1)
+
+
+def reward_lateral_drift_penalty(env, entity_manager, vel_cmd_manager, max_val=0.3, **kwargs) -> torch.Tensor:
+    """
+    Penalización por drift lateral (velocidad Y no comandada).
+    Solo penaliza si el comando lateral es ~0.
+    """
+    lin_vel = entity_manager.get_linear_velocity()  # (N, 3)
+    cmd = vel_cmd_manager.command  # (N, 3) → [vx, vy, wz]
+    vy_error = (lin_vel[:, 1] - cmd[:, 1]) ** 2
+    return torch.clamp(vy_error / (max_val ** 2), 0.0, 1.0)
+
+
+def reward_imu_smoothness(env, entity_manager, max_val=10.0, **kwargs) -> torch.Tensor:
+    """
+    Premia la suavidad del movimiento medida por el IMU.
+    Penaliza la norma total de la velocidad angular (incluido yaw).
+    Un robot caminando bien tiene ω pequeño y controlado.
+    """
+    ang_vel = entity_manager.get_angular_velocity()  # (N, 3)
+    omega_norm = torch.norm(ang_vel, dim=-1)
+    return torch.clamp(omega_norm / max_val, 0.0, 1.0)
 
 
 class BipedGaitTrainingEnv(ManagedEnvironment):
@@ -185,18 +316,33 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             resample_time_sec=4.0,
         )
 
+        # ══════════════════════════════════════════════════════════════════════
+        #  REWARD MANAGER — Matemáticamente balanceado
+        #
+        #  PRESUPUESTO:
+        #    Positivos  → hasta +6.3  (alive 1.0 + upright 1.5 + tracking 1.5
+        #                              + gait 1.0 + foot_h 0.5 + air_time 0.8)
+        #    Negativos  → hasta -3.5  (ang_vel 0.7 + vz 0.3 + acc 0.3
+        #                              + action_rate 0.3 + energy 0.5
+        #                              + bad_contact 0.8 + drift 0.3
+        #                              + smoothness 0.3)
+        #
+        #  Ratio positivo/negativo ≈ 1.8:1 (robot de pie)
+        #  Todos los términos están en [0, 1] antes de ponderar.
+        # ══════════════════════════════════════════════════════════════════════
         self.reward_manager = RewardManager(
             self,
             logging_enabled=True,
             cfg={ # type: ignore
-                "gait_phase_reward": {
-                    "weight": 1.5,
-                    "fn": self.gait_command_manager.gait_phase_reward,
-                    "params": {"contact_manager": self.feet_contact_manager},
+                # ── POSITIVOS ─────────────────────────────────────────────
+                "alive_bonus": {
+                    "weight": 1.0,
+                    "fn": reward_alive_bonus,
                 },
-                "foot_height_reward": {
-                    "weight": 0.9,
-                    "fn": self.gait_command_manager.foot_height_reward,
+                "upright_stability": {
+                    "weight": 1.5,
+                    "fn": reward_upright_stability,
+                    "params": {"entity_manager": self.robot_manager},
                 },
                 "tracking_lin_vel": {
                     "weight": 1.5,
@@ -214,8 +360,17 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                         "entity_manager":  self.robot_manager,
                     },
                 },
+                "gait_phase_reward": {
+                    "weight": 1.0,
+                    "fn": self.gait_command_manager.gait_phase_reward,
+                    "params": {"contact_manager": self.feet_contact_manager},
+                },
+                "foot_height_reward": {
+                    "weight": 0.5,
+                    "fn": self.gait_command_manager.foot_height_reward,
+                },
                 "feet_air_time": {
-                    "weight": 1.5,
+                    "weight": 0.8,
                     "fn": rewards.feet_air_time,
                     "params": {
                         "time_threshold":     0.2,
@@ -224,42 +379,52 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                         "vel_cmd_manager":    self.velocity_command,
                     },
                 },
+                # ── NEGATIVOS (todos normalizados a [0,1]) ───────────────
+                "ang_vel_xy": {
+                    "weight": -0.7,
+                    "fn": reward_angular_velocity_penalty,
+                    "params": {"entity_manager": self.robot_manager,
+                               "max_val": 5.0},
+                },
                 "lin_vel_z": {
                     "weight": -0.3,
-                    "fn": rewards.lin_vel_z_l2,
-                    "params": {"entity_manager": self.robot_manager},
-                },
-                "ang_vel_xy_l2": {
-                    "weight": -0.5,
-                    "fn": rewards.ang_vel_xy_l2,
-                    "params": {"entity_manager": self.robot_manager},
+                    "fn": reward_linear_vel_z_penalty,
+                    "params": {"entity_manager": self.robot_manager,
+                               "max_val": 1.0},
                 },
                 "body_acceleration": {
-                    "weight": -0.5,
-                    "fn": rewards.body_acceleration_exp,
-                    "params": {"entity_manager": self.robot_manager},
-                },
-                "base_height_target": {
-                    "weight": -4.0,
-                    "fn": rewards.base_height,
-                    "params": {
-                        "target_height": HEIGHT_OFFSET - 0.06,
-                        "entity_attr":   "robot",
-                    },
+                    "weight": -0.3,
+                    "fn": reward_body_acceleration_penalty,
+                    "params": {"entity_manager": self.robot_manager,
+                               "max_val": 20.0},
                 },
                 "action_rate": {
-                    "weight": -0.025,
-                    "fn": rewards.action_rate_l2,
+                    "weight": -0.3,
+                    "fn": reward_action_rate_penalty,
+                    "params": {"max_val": 2.0},
                 },
-                "similar_to_default": {
-                    "weight": -0.01,
-                    "fn": rewards.dof_similar_to_default,
-                    "params": {"action_manager": self.action_manager},
+                "energy": {
+                    "weight": -0.5,
+                    "fn": reward_energy_penalty,
+                    "params": {"max_val": 1.5},
                 },
                 "bad_contact": {
-                    "weight": -1.0,
-                    "fn": rewards.contact_force,
+                    "weight": -0.8,
+                    "fn": reward_contact_binary_penalty,
                     "params": {"contact_manager": self.knee_contact_manager},
+                },
+                "lateral_drift": {
+                    "weight": -0.3,
+                    "fn": reward_lateral_drift_penalty,
+                    "params": {"entity_manager": self.robot_manager,
+                               "vel_cmd_manager": self.velocity_command,
+                               "max_val": 0.3},
+                },
+                "imu_smoothness": {
+                    "weight": -0.3,
+                    "fn": reward_imu_smoothness,
+                    "params": {"entity_manager": self.robot_manager,
+                               "max_val": 10.0},
                 },
             },
         )
