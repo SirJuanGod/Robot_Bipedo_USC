@@ -68,7 +68,7 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
             "obs_normalization": True,
             "distribution_cfg": {
                 "class_name": "GaussianDistribution",
-                "init_std":   0.05,
+                "init_std":   0.8,
             },
         },
 
