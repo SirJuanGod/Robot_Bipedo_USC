@@ -7,7 +7,7 @@ from importlib import metadata
 import genesis as gs
 
 from genesis_forge.wrappers import RslRlWrapper
-from environment import BipedoEnv
+from environment import BipedGaitTrainingEnv
 
 try:
     try:
@@ -20,7 +20,7 @@ except (metadata.PackageNotFoundError, ImportError) as e:
     raise ImportError("Please install install 'rsl-rl-lib>=2.2.4'.") from e
 from rsl_rl.runners import OnPolicyRunner
 
-EXPERIMENT_NAME = "bipedo-usc-ppo-v1"
+EXPERIMENT_NAME = "bipedo-usc-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
 parser.add_argument("-d", "--device", type=str, default="cpu")
@@ -66,7 +66,7 @@ def main():
     model = get_latest_model(log_path)
 
     # Setup environment
-    env = BipedoEnv(num_envs=1, headless=False)
+    env = BipedGaitTrainingEnv(num_envs=1, headless=False)
     env = RslRlWrapper(env)
     env.build()
     env.reset()

@@ -16,186 +16,163 @@ from genesis_forge.mdp import reset, rewards, terminations, observations
 from genesis_forge.managers.actuator import NoisyValue
 from gait_command_manager import BipedGaitCommandManager
 
-# El robot mide ~0.2340 m de altura en posición de pie.
 HEIGHT_OFFSET                = 0.2340
 INITIAL_BODY_POSITION        = [0.0, 0.0, HEIGHT_OFFSET]
 INITIAL_QUAT                 = [1.0, 0.0, 0.0, 0.0]
 CURRICULUM_CHECK_EVERY_STEPS = 50
 
-# Valores de ruido sim2real para las observaciones del actor policy
 NOISE_SCALES = {
-    "ang_vel": 0.05,   # rad/s  — giroscopio IMU
-    "gravity":  0.05,  # u.n.   — gravedad proyectada
-    "dof_pos": 0.01,   # rad   — encoder abs/rel típico
-    "dof_vel": 0.50,   # rad/s — derivada discreta muy ruidosa en hardware real
+    "ang_vel": 0.05,
+    "gravity":  0.05,
+    "dof_pos": 0.01,
+    "dof_vel": 0.50,
 }
 
-# ── Parámetros físicos del robot (del MJCF) ──────────────────────────────────
-ROBOT_MASS_KG     = 1.09     # masa total aproximada
-ROBOT_HEIGHT_M    = 0.234    # altura de pie
-LEG_LENGTH_M      = 0.084    # longitud del eslabón de pierna
-GRAVITY           = 9.81
+ROBOT_MASS_KG  = 1.09
+ROBOT_HEIGHT_M = 0.234
+LEG_LENGTH_M   = 0.084
+GRAVITY        = 9.81
 
 
 def _noisy(tensor: torch.Tensor, scale: float) -> torch.Tensor:
     return tensor + torch.randn_like(tensor) * scale
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Funciones de recompensa custom — normalizadas a [0, 1] o clipeadas
-# ═══════════════════════════════════════════════════════════════════════════════
-
 def reward_alive_bonus(env, **kwargs) -> torch.Tensor:
-    """Bono constante por estar vivo. Incentiva supervivencia."""
     return torch.ones(env.num_envs, device=gs.device)
 
 
 def reward_upright_stability(env, entity_manager, **kwargs) -> torch.Tensor:
-    """
-    Recompensa basada en la componente Z de la gravedad proyectada en el frame
-    del cuerpo (disponible desde el IMU).
-    
-    Si el robot está perfectamente vertical, projected_gravity = [0, 0, -1].
-    La componente Z será -1 → reward = 1.0
-    Si está de lado, Z → 0 → reward ≈ 0
-    Si está boca abajo, Z → +1 → reward = 0
-    
-    R = clamp(-g_z, 0, 1)^2   (cuadrático para penalizar más las inclinaciones)
-    """
-    proj_grav = entity_manager.get_projected_gravity()  # (N, 3)
-    gz = proj_grav[:, 2]  # negativo cuando está de pie
-    uprightness = torch.clamp(-gz, 0.0, 1.0)
-    return uprightness ** 2  # [0, 1]
+    proj_grav = entity_manager.get_projected_gravity()
+    gz = proj_grav[:, 2]
+    return torch.clamp(-gz, 0.0, 1.0)
 
 
-def reward_angular_velocity_penalty(env, entity_manager, max_val=5.0, **kwargs) -> torch.Tensor:
-    """
-    Penalización por velocidad angular en ejes X,Y (roll/pitch).
-    Normalizada: ||ω_xy||² / max_val² , clipeada a [0, 1].
-    
-    max_val=5.0 rad/s es un límite razonable para un robot de 23cm.
-    """
-    ang_vel = entity_manager.get_angular_velocity()  # (N, 3)
-    ang_vel_xy_sq = ang_vel[:, 0]**2 + ang_vel[:, 1]**2
+def reward_tracking_lin_vel(
+    env, entity_manager, vel_cmd_manager, sigma: float = 0.25, **kwargs
+) -> torch.Tensor:
+    lin_vel = entity_manager.get_linear_velocity()[:, :2]
+    cmd     = vel_cmd_manager.command[:, :2]
+    error   = torch.sum((lin_vel - cmd) ** 2, dim=-1)
+    return torch.exp(-error / sigma)
+
+
+def reward_tracking_ang_vel(
+    env, entity_manager, vel_cmd_manager, sigma: float = 0.25, **kwargs
+) -> torch.Tensor:
+    ang_vel_z = entity_manager.get_angular_velocity()[:, 2]
+    cmd_wz    = vel_cmd_manager.command[:, 2]
+    error     = (ang_vel_z - cmd_wz) ** 2
+    return torch.exp(-error / sigma)
+
+
+def reward_angular_velocity_penalty(
+    env, entity_manager, max_val: float = 5.0, **kwargs
+) -> torch.Tensor:
+    ang_vel = entity_manager.get_angular_velocity()
+    ang_vel_xy_sq = ang_vel[:, 0] ** 2 + ang_vel[:, 1] ** 2
     return torch.clamp(ang_vel_xy_sq / (max_val ** 2), 0.0, 1.0)
 
 
-def reward_linear_vel_z_penalty(env, entity_manager, max_val=1.0, **kwargs) -> torch.Tensor:
-    """
-    Penalización por velocidad vertical del cuerpo.
-    Normalizada: vz² / max_val², clipeada a [0, 1].
-    """
-    lin_vel = entity_manager.get_linear_velocity()  # (N, 3)
-    vz_sq = lin_vel[:, 2] ** 2
+def reward_linear_vel_z_penalty(
+    env, entity_manager, max_val: float = 1.0, **kwargs
+) -> torch.Tensor:
+    lin_vel = entity_manager.get_linear_velocity()
+    vz_sq   = lin_vel[:, 2] ** 2
     return torch.clamp(vz_sq / (max_val ** 2), 0.0, 1.0)
 
 
-def reward_body_acceleration_penalty(env, entity_manager, max_val=20.0, **kwargs) -> torch.Tensor:
-    """
-    Penalización por aceleración del cuerpo (suavidad).
-    Computa aceleración lineal como Δv/dt entre steps.
-    Normalizada a [0, 1].
-    """
-    curr_vel = entity_manager.get_linear_velocity()  # (N, 3)
+def reward_body_acceleration_penalty(
+    env, entity_manager, max_val: float = 20.0, **kwargs
+) -> torch.Tensor:
+    curr_vel = entity_manager.get_linear_velocity()
     if not hasattr(env, '_prev_lin_vel') or env._prev_lin_vel is None:
         env._prev_lin_vel = curr_vel.clone()
         return torch.zeros(env.num_envs, device=gs.device)
-    
-    acc = (curr_vel - env._prev_lin_vel) / env.dt  # (N, 3)
+    acc = (curr_vel - env._prev_lin_vel) / env.dt
     env._prev_lin_vel = curr_vel.clone()
-    acc_norm = torch.norm(acc, dim=-1)  # (N,)
-    return torch.clamp(acc_norm / max_val, 0.0, 1.0)
+    return torch.clamp(torch.norm(acc, dim=-1) / max_val, 0.0, 1.0)
 
 
-def reward_action_rate_penalty(env, max_val=2.0, **kwargs) -> torch.Tensor:
-    """
-    Penalización por cambios bruscos en las acciones (suavidad).
-    ||a_t - a_{t-1}||² normalizado por num_actions * max_val².
-    Resultado en [0, 1].
-    """
+def reward_action_rate_penalty(env, max_val: float = 2.0, **kwargs) -> torch.Tensor:
     curr = env.action_manager.get_actions()
     if not hasattr(env, '_prev_actions_reward') or env._prev_actions_reward is None:
         env._prev_actions_reward = curr.clone()
         return torch.zeros(env.num_envs, device=gs.device)
-    
-    prev = env._prev_actions_reward
-    diff_sq = torch.sum((curr - prev) ** 2, dim=-1)  # (N,)
+    prev    = env._prev_actions_reward
+    diff_sq = torch.sum((curr - prev) ** 2, dim=-1)
     num_act = curr.shape[-1]
     env._prev_actions_reward = curr.clone()
     return torch.clamp(diff_sq / (num_act * max_val ** 2), 0.0, 1.0)
 
 
-def reward_energy_penalty(env, max_val=1.5, **kwargs) -> torch.Tensor:
-    """
-    Penalización por gasto energético (magnitud de acciones).
-    Proxy de consumo de torque: ||a||² / (num_actions * max_val²).
-    Resultado en [0, 1].
-    """
-    actions = env.action_manager.get_actions()  # (N, num_dof)
-    act_sq = torch.sum(actions ** 2, dim=-1)
+def reward_energy_penalty(env, max_val: float = 1.5, **kwargs) -> torch.Tensor:
+    actions = env.action_manager.get_actions()
+    act_sq  = torch.sum(actions ** 2, dim=-1)
     num_act = actions.shape[-1]
     return torch.clamp(act_sq / (num_act * max_val ** 2), 0.0, 1.0)
 
 
 def reward_contact_binary_penalty(env, contact_manager, **kwargs) -> torch.Tensor:
-    """
-    Penalización suave por contacto no deseado. Resultado en [0, 1).
-    Usa exponencial negativa para gradiente continuo en lugar de escalón binario.
-    """
     ids = contact_manager._link_ids
     if ids is None or len(ids) == 0:
         return torch.zeros(env.num_envs, device=gs.device)
-    forces = contact_manager.get_contact_forces(ids.tolist())  # (N, num_links, 3)
-    force_norm = torch.norm(forces, dim=-1)                    # (N, num_links)
-    max_force = force_norm.max(dim=-1).values                  # (N,)
+    forces     = contact_manager.get_contact_forces(ids.tolist())
+    force_norm = torch.norm(forces, dim=-1)
+    max_force  = force_norm.max(dim=-1).values
     return 1.0 - torch.exp(-max_force / 2.0)
 
 
-def reward_lateral_drift_penalty(env, entity_manager, vel_cmd_manager, max_val=0.3, **kwargs) -> torch.Tensor:
-    """
-    Penalización por drift lateral (velocidad Y no comandada).
-    Solo penaliza si el comando lateral es ~0.
-    """
-    lin_vel = entity_manager.get_linear_velocity()  # (N, 3)
-    cmd = vel_cmd_manager.command  # (N, 3) → [vx, vy, wz]
-    vy_error = (lin_vel[:, 1] - cmd[:, 1]) ** 2
-    return torch.clamp(vy_error / (max_val ** 2), 0.0, 1.0)
-
-
-def reward_imu_smoothness(env, entity_manager, max_val=10.0, **kwargs) -> torch.Tensor:
-    """
-    Premia la suavidad del movimiento medida por el IMU.
-    Penaliza la norma total de la velocidad angular (incluido yaw).
-    Un robot caminando bien tiene ω pequeño y controlado.
-    """
-    ang_vel = entity_manager.get_angular_velocity()  # (N, 3)
-    omega_norm = torch.norm(ang_vel, dim=-1)
-    return torch.clamp(omega_norm / max_val, 0.0, 1.0)
-
-
-def reward_base_height(env, entity_manager, target_height: float = 0.234, max_val: float = 0.1, **kwargs) -> torch.Tensor:
-    """
-    Penalización por alejarse de la altura objetivo del cuerpo.
-    Evita que el robot aprenda a agacharse o arrastrarse.
-    target_height = HEIGHT_OFFSET = 0.234 m
-    Resultado en [0, 1].
-    """
-    height = entity_manager.base_pos[:, 2]  # (N,)
+def reward_base_height(
+    env, entity_manager,
+    target_height: float = 0.234,
+    max_val: float = 0.05,
+    **kwargs
+) -> torch.Tensor:
+    height = entity_manager.base_pos[:, 2]
     error  = (height - target_height) ** 2
     return torch.clamp(error / (max_val ** 2), 0.0, 1.0)
 
 
 def reward_dof_pos_deviation(env, max_val: float = 0.5, **kwargs) -> torch.Tensor:
-    """
-    Penalización por alejarse de la posición articular por defecto.
-    Es la recompensa más importante para mantener una postura base coherente.
-    Resultado en [0, 1].
-    """
-    dof_pos = env.action_manager.get_dofs_position()   # (N, num_dof)
-    default  = env.action_manager.default_dofs_pos      # (N, num_dof)
+    dof_pos  = env.action_manager.get_dofs_position()
+    default  = env.action_manager.default_dofs_pos
     deviation = torch.sum((dof_pos - default) ** 2, dim=-1)
     num_dof   = dof_pos.shape[-1]
     return torch.clamp(deviation / (num_dof * max_val ** 2), 0.0, 1.0)
+
+
+def reward_lateral_drift_penalty(
+    env, entity_manager, vel_cmd_manager, max_val: float = 0.3, **kwargs
+) -> torch.Tensor:
+    lin_vel  = entity_manager.get_linear_velocity()
+    cmd      = vel_cmd_manager.command
+    vy_error = (lin_vel[:, 1] - cmd[:, 1]) ** 2
+    return torch.clamp(vy_error / (max_val ** 2), 0.0, 1.0)
+
+
+def reward_foot_alternation(
+    env, contact_manager, vel_cmd_manager,
+    force_scale: float = 5.0,
+    **kwargs,
+) -> torch.Tensor:
+
+    ids = contact_manager._link_ids
+    if ids is None or len(ids) < 2:
+        return torch.zeros(env.num_envs, device=gs.device)
+
+    forces     = contact_manager.get_contact_forces(ids.tolist())  # (N, 2, 3)
+    force_norm = torch.norm(forces, dim=-1)                        # (N, 2)
+
+    p = torch.sigmoid(force_norm / force_scale - 1.0)             # (N, 2) ∈ (0,1)
+    p_L, p_R = p[:, 0], p[:, 1]
+
+    alternation = p_L * (1.0 - p_R) + p_R * (1.0 - p_L)          # (N,) ∈ [0,1]
+
+    cmd_norm = torch.norm(vel_cmd_manager.command[:, :2], dim=-1)
+    moving   = (cmd_norm > 0.05).float()
+
+    return alternation * moving
 
 
 class BipedGaitTrainingEnv(ManagedEnvironment):
@@ -243,7 +220,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 pos=INITIAL_BODY_POSITION,
                 quat=INITIAL_QUAT,
             ),
-            ) #type: ignore
+        ) #type: ignore
 
         self.camera = self.scene.add_camera(
             pos=(2.5, 0.0, 1.5),
@@ -262,7 +239,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                                    self.robot.get_link("ank_i").idx_local]
         self._critic_knee_idx  = [self.robot.get_link("kne_d").idx_local,
                                    self.robot.get_link("kne_i").idx_local]
-        
+
         self.robot_manager = EntityManager(
             self,
             entity_attr="robot",
@@ -293,14 +270,14 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 "HI":   NoisyValue(0.0, 0.01),
                 "BI":   NoisyValue(-0.943, 0.01),
                 "HEAD": NoisyValue(0.0, 0.01),
-                "CD":  NoisyValue(0.0, 0.01),
-                "LD": NoisyValue(-0.22, 0.01),
-                "KD": NoisyValue(-0.236, 0.01),
-                "FD":  NoisyValue(-0.0157, 0.01),
-                "CI":  NoisyValue(0.22, 0.01),
-                "LI":  NoisyValue(0.157, 0.01),
-                "KI":  NoisyValue(0.0, 0.01),
-                "FI":  NoisyValue(0.0157, 0.01), 
+                "CD":   NoisyValue(0.0, 0.01),
+                "LD":   NoisyValue(-0.22, 0.01),
+                "KD":   NoisyValue(-0.236, 0.01),
+                "FD":   NoisyValue(-0.0157, 0.01),
+                "CI":   NoisyValue(0.22, 0.01),
+                "LI":   NoisyValue(0.157, 0.01),
+                "KI":   NoisyValue(0.0, 0.01),
+                "FI":   NoisyValue(0.0157, 0.01),
             },
             max_force={
                 "BD": 2.0, "HD": 2.0, "HI": 2.0, "BI": 2.0,
@@ -309,6 +286,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 "CI": 3.0, "LI": 3.0, "KI": 3.0, "FI": 2.5,
             },
         )
+
         self.action_manager = PositionActionManager(
             self,
             scale=0.4,
@@ -327,12 +305,12 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             track_air_time=True,
             air_time_contact_threshold=1.0,
         )
-        
+
         self.knee_contact_manager = ContactManager(
             self,
-            link_names=["kne_d", "kne_i",        "ank_d", "ank_i"],
+            link_names=["kne_d", "kne_i", "ank_d", "ank_i"],
         )
-        
+
         self.leg_contact_manager = ContactManager(
             self,
             link_names=["leg_d", "leg_i"],
@@ -340,8 +318,8 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
 
         self.velocity_command = VelocityCommandManager(
             self,
-            range={ # type: ignore
-                "lin_vel_x": [-0.7, 0.7],
+            range={ #type: ignore
+                "lin_vel_x": [0.0, 0.7],
                 "lin_vel_y": [0.0, 0.0],
                 "ang_vel_z": [-0.5, 0.5],
             },
@@ -354,31 +332,16 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
         self.gait_command_manager = BipedGaitCommandManager(
             self,
             foot_names={
-                "L": "leg_p1_i",   
-                "R": "leg_p1_d",   
+                "L": "leg_p1_i",
+                "R": "leg_p1_d",
             },
             resample_time_sec=4.0,
         )
 
-        # ══════════════════════════════════════════════════════════════════════
-        #  REWARD MANAGER — Matemáticamente balanceado
-        #
-        #  PRESUPUESTO:
-        #    Positivos  → hasta +6.3  (alive 1.0 + upright 1.5 + tracking 1.5
-        #                              + gait 1.0 + foot_h 0.5 + air_time 0.8)
-        #    Negativos  → hasta -3.5  (ang_vel 0.7 + vz 0.3 + acc 0.3
-        #                              + action_rate 0.3 + energy 0.5
-        #                              + bad_contact 0.8 + drift 0.3
-        #                              + smoothness 0.3)
-        #
-        #  Ratio positivo/negativo ≈ 1.8:1 (robot de pie)
-        #  Todos los términos están en [0, 1] antes de ponderar.
-        # ══════════════════════════════════════════════════════════════════════
         self.reward_manager = RewardManager(
             self,
             logging_enabled=True,
-            cfg={ # type: ignore
-                # ── POSITIVOS ─────────────────────────────────────────────
+            cfg={ #type: ignore
                 "alive_bonus": {
                     "weight": 1.0,
                     "fn": reward_alive_bonus,
@@ -390,18 +353,20 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 },
                 "tracking_lin_vel": {
                     "weight": 1.5,
-                    "fn": rewards.command_tracking_lin_vel,
+                    "fn": reward_tracking_lin_vel,
                     "params": {
                         "vel_cmd_manager": self.velocity_command,
                         "entity_manager":  self.robot_manager,
+                        "sigma":           0.25,
                     },
                 },
                 "tracking_ang_vel": {
                     "weight": 0.5,
-                    "fn": rewards.command_tracking_ang_vel,
+                    "fn": reward_tracking_ang_vel,
                     "params": {
                         "vel_cmd_manager": self.velocity_command,
                         "entity_manager":  self.robot_manager,
+                        "sigma":           0.25,
                     },
                 },
                 "gait_phase_reward": {
@@ -414,7 +379,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "fn": self.gait_command_manager.foot_height_reward,
                 },
                 "feet_air_time": {
-                    "weight": 0.8,
+                    "weight": 0.6,
                     "fn": rewards.feet_air_time,
                     "params": {
                         "time_threshold":     0.2,
@@ -423,24 +388,29 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                         "vel_cmd_manager":    self.velocity_command,
                     },
                 },
-                # ── NEGATIVOS (todos normalizados a [0,1]) ───────────────
+                "foot_alternation": {
+                    "weight": 0.9,
+                    "fn": reward_foot_alternation,
+                    "params": {
+                        "contact_manager":  self.feet_contact_manager,
+                        "vel_cmd_manager":  self.velocity_command,
+                        "force_scale":      5.0,
+                    },
+                },
                 "ang_vel_xy": {
                     "weight": -0.7,
                     "fn": reward_angular_velocity_penalty,
-                    "params": {"entity_manager": self.robot_manager,
-                               "max_val": 5.0},
+                    "params": {"entity_manager": self.robot_manager, "max_val": 5.0},
                 },
                 "lin_vel_z": {
                     "weight": -0.3,
                     "fn": reward_linear_vel_z_penalty,
-                    "params": {"entity_manager": self.robot_manager,
-                               "max_val": 1.0},
+                    "params": {"entity_manager": self.robot_manager, "max_val": 1.0},
                 },
                 "body_acceleration": {
                     "weight": -0.3,
                     "fn": reward_body_acceleration_penalty,
-                    "params": {"entity_manager": self.robot_manager,
-                               "max_val": 20.0},
+                    "params": {"entity_manager": self.robot_manager, "max_val": 20.0},
                 },
                 "action_rate": {
                     "weight": -0.3,
@@ -448,41 +418,37 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"max_val": 2.0},
                 },
                 "energy": {
-                    "weight": -0.5,
+                    "weight": -0.4,
                     "fn": reward_energy_penalty,
                     "params": {"max_val": 1.5},
                 },
                 "bad_contact": {
-                    "weight": -0.8,
+                    "weight": -0.6,
                     "fn": reward_contact_binary_penalty,
                     "params": {"contact_manager": self.knee_contact_manager},
                 },
                 "base_height": {
-                    "weight": -1.2,
+                    "weight": -0.5,
                     "fn": reward_base_height,
                     "params": {
                         "entity_manager": self.robot_manager,
-                        "target_height":  HEIGHT_OFFSET-0.025,
+                        "target_height":  HEIGHT_OFFSET-0.02,
                         "max_val":        0.05,
                     },
                 },
                 "dof_pos_deviation": {
-                    "weight": -1.5,
+                    "weight": -0.5,
                     "fn": reward_dof_pos_deviation,
                     "params": {"max_val": 0.5},
                 },
                 "lateral_drift": {
                     "weight": -0.3,
                     "fn": reward_lateral_drift_penalty,
-                    "params": {"entity_manager": self.robot_manager,
-                               "vel_cmd_manager": self.velocity_command,
-                               "max_val": 0.3},
-                },
-                "imu_smoothness": {
-                    "weight": -0.3,
-                    "fn": reward_imu_smoothness,
-                    "params": {"entity_manager": self.robot_manager,
-                               "max_val": 10.0},
+                    "params": {
+                        "entity_manager":  self.robot_manager,
+                        "vel_cmd_manager": self.velocity_command,
+                        "max_val":         0.3,
+                    },
                 },
             },
         )
@@ -490,7 +456,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
         self.termination_manager = TerminationManager(
             self,
             logging_enabled=True,
-            term_cfg={ # type: ignore
+            term_cfg={ #type: ignore
                 "timeout": {
                     "fn": terminations.timeout,
                     "time_out": True,
@@ -500,7 +466,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {
                         "contact_manager": self.torso_contact_manager,
                         "threshold": 1.0,
-                        },
+                    },
                 },
                 "fall_over": {
                     "fn": terminations.bad_orientation,
@@ -516,7 +482,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             self,
             name="policy",
             history_len=5,
-            cfg={ # type: ignore
+            cfg={ #type: ignore
                 "velocity_cmd": {
                     "fn": self.velocity_command.observation,
                 },
@@ -540,12 +506,12 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 },
             },
         )
-        
+
         ObservationManager(
             self,
             name="critic",
             history_len=5,
-            cfg={ # type: ignore
+            cfg={ #type: ignore
                 "linear_velocity": {
                     "fn": observations.entity_linear_velocity,
                     "params": {"entity_manager": self.robot_manager},
@@ -558,7 +524,6 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "fn": observations.entity_projected_gravity,
                     "params": {"entity_manager": self.robot_manager},
                 },
-
                 "dof_pos": {
                     "fn": observations.entity_dofs_position,
                     "params": {"action_manager": self.action_manager},
@@ -611,7 +576,6 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 "gait_phase_raw": {
                     "fn": lambda env: self.gait_command_manager.gait_phase,
                 },
-
                 "robot_pos": {
                     "fn": lambda env: self.robot_manager.base_pos,
                 },
@@ -641,12 +605,9 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
         return result
 
     def update_curriculum(self):
-
         if self.step_count < self._next_curriculum_check_step:
             return
-        self._next_curriculum_check_step = (
-            self.step_count + CURRICULUM_CHECK_EVERY_STEPS
-        )
+        self._next_curriculum_check_step = self.step_count + CURRICULUM_CHECK_EVERY_STEPS
 
         gait_r = self.reward_manager.last_episode_mean_reward(
             "gait_phase_reward", before_weight=True

@@ -28,7 +28,7 @@ from rsl_rl.runners import OnPolicyRunner
 EXPERIMENT_NAME = "bipedo-usc-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-n", "--num_envs",        type=int,   default=10000)
+parser.add_argument("-n", "--num_envs",        type=int,   default=4096)
 parser.add_argument("--max_iterations",        type=int,   default=4000)
 parser.add_argument("-d", "--device",          type=str,   default="gpu")
 parser.add_argument("-e", "--exp_name",        type=str,   default=EXPERIMENT_NAME)
@@ -44,11 +44,11 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
         "algorithm": {
             "class_name": "PPO",
             "clip_param":                    0.2,
-            "desired_kl":                    0.01,
-            "entropy_coef":                  0.01,
+            "desired_kl":                    0.010,
+            "entropy_coef":                  0.003,
             "gamma":                         0.99,
             "lam":                           0.95,
-            "learning_rate":                 4e-4,
+            "learning_rate":                 1e-4,
             "max_grad_norm":                 1.0,
             "num_learning_epochs":           5,
             "num_mini_batches":              4,
@@ -68,7 +68,7 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
             "obs_normalization": True,
             "distribution_cfg": {
                 "class_name": "GaussianDistribution",
-                "init_std":   0.8,
+                "init_std":   1.0,
             },
         },
 
@@ -98,7 +98,9 @@ def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
         "runner_class_name": "OnPolicyRunner",
 
         "seed": 1,
-        "num_steps_per_env":     max(24, round( 98_304 / num_envs)),
+        "num_steps_per_env": round(
+            98_304 / num_envs
+        ),
         "save_interval":         100,
         "empirical_normalization": None,
         "torch_compile_mode":    None,
