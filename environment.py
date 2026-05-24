@@ -21,6 +21,9 @@ INITIAL_BODY_POSITION        = [0.0, 0.0, HEIGHT_OFFSET]
 INITIAL_QUAT                 = [1.0, 0.0, 0.0, 0.0]
 CURRICULUM_CHECK_EVERY_STEPS = 50
 
+# --- NUEVA CONSTANTE: Dificultad del terreno ---
+TERRAIN_VERTICAL_SCALE       = 0.015  # 1.5 cm de irregularidad (súbelo gradualmente)
+
 NOISE_SCALES = {
     "ang_vel": 0.05,
     "gravity":  0.05,
@@ -212,7 +215,22 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             ),
         )
 
-        self.terrain = self.scene.add_entity(gs.morphs.Plane()) #type: ignore
+        self.terrain = self.scene.add_entity(
+            gs.morphs.Terrain(
+                n_subterrains=(1, 1),
+                subterrain_size=(8.0, 8.0),
+                vertical_scale=0.01, # Escala base (la controlamos más abajo)
+                subterrain_types=[["random_uniform_terrain"]],
+                subterrain_parameters={
+                    "random_uniform_terrain": {
+                        "min_height": -0.02,  # -2 cm de profundidad
+                        "max_height": 0.02,   # +2 cm de altura máxima
+                        "step": 0.01,         # Incrementos suaves
+                        "downsampled_scale": 0.2, # Suavidad entre picos
+                    },
+                },
+            )
+        ) #type: ignore
 
         self.robot = self.scene.add_entity(
             gs.morphs.MJCF(
@@ -347,7 +365,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "fn": reward_alive_bonus,
                 },
                 "upright_stability": {
-                    "weight": 1.5,
+                    "weight": 1.0, # MODIFICADO: Relajado de 1.5 a 1.0
                     "fn": reward_upright_stability,
                     "params": {"entity_manager": self.robot_manager},
                 },
@@ -375,7 +393,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"contact_manager": self.feet_contact_manager},
                 },
                 "foot_height_reward": {
-                    "weight": 0.5,
+                    "weight": 1.2, # MODIFICADO: Aumentado de 0.5 a 1.2
                     "fn": self.gait_command_manager.foot_height_reward,
                 },
                 "feet_air_time": {
@@ -423,12 +441,12 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"max_val": 1.5},
                 },
                 "bad_contact": {
-                    "weight": -0.6,
+                    "weight": -1.5, # MODIFICADO: Penalización severa por rozar la rodilla (era -0.6)
                     "fn": reward_contact_binary_penalty,
                     "params": {"contact_manager": self.knee_contact_manager},
                 },
                 "base_height": {
-                    "weight": -0.5,
+                    "weight": -0.2, # MODIFICADO: Relajado de -0.5 a -0.2
                     "fn": reward_base_height,
                     "params": {
                         "entity_manager": self.robot_manager,
