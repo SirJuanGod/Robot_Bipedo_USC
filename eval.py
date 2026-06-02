@@ -20,12 +20,10 @@ except (metadata.PackageNotFoundError, ImportError) as e:
     raise ImportError("Please install install 'rsl-rl-lib>=2.2.4'.") from e
 from rsl_rl.runners import OnPolicyRunner
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-
-EXPERIMENT_NAME = "bipedo-usc-v7"
+EXPERIMENT_NAME = "bipedo-usc-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-d", "--device", type=str, default="gpu")
+parser.add_argument("-d", "--device", type=str, default="cpu")
 parser.add_argument("-e", "--exp_name", type=str, default=EXPERIMENT_NAME)
 args = parser.parse_args()
 
@@ -49,9 +47,6 @@ def get_latest_model(log_dir: str) -> str:
 
 
 def main():
-
-    torch.autograd.set_detect_anomaly(True)
-    
     # Processor backend (GPU or CPU)
     backend = gs.gpu # type: ignore
     if args.device == "cpu":
@@ -92,7 +87,7 @@ def main():
     except KeyboardInterrupt:
         pass
     except gs.GenesisException as e:
-        if str(e) != "Viewer closed.":
+        if e.message != "Viewer closed.": # type: ignore
             raise e
     except Exception as e:
         raise e

@@ -1,10 +1,5 @@
-from unittest import result
-
 import torch
 import genesis as gs
-import os
-import numpy as np
-from PIL import Image
 
 from genesis_forge import ManagedEnvironment
 from genesis_forge.managers import (
@@ -14,7 +9,6 @@ from genesis_forge.managers import (
     ObservationManager,
     ActuatorManager,
     PositionActionManager,
-    TerrainManager,
     VelocityCommandManager,
     ContactManager,
 )
@@ -27,6 +21,8 @@ INITIAL_BODY_POSITION        = [0.0, 0.0, HEIGHT_OFFSET]
 INITIAL_QUAT                 = [1.0, 0.0, 0.0, 0.0]
 CURRICULUM_CHECK_EVERY_STEPS = 50
 
+# --- NUEVA CONSTANTE: Dificultad del terreno ---
+TERRAIN_VERTICAL_SCALE       = 0.015  # 1.5 cm de irregularidad (súbelo gradualmente)
 
 NOISE_SCALES = {
     "ang_vel": 0.05,
@@ -158,63 +154,28 @@ def reward_lateral_drift_penalty(
     return torch.clamp(vy_error / (max_val ** 2), 0.0, 1.0)
 
 
-def reward_foot_step_alternation(
+def reward_foot_alternation(
     env, contact_manager, vel_cmd_manager,
-    foot_link_idx_local: list | None = None,
     force_scale: float = 5.0,
-    step_scale: float = 0.02,   # separación X mínima para recompensa (2 cm para robot pequeño)
     **kwargs,
 ) -> torch.Tensor:
-    """
-    Recompensa la alternancia correcta de pasos usando posición X de los pies.
-
-    Lógica:
-    - El pie en SWING (en el aire) debe estar ADELANTE del pie en STANCE.
-    - Si R está en swing y x_R > x_L → reward positivo (R avanzó, paso correcto).
-    - Si R está en swing y x_R < x_L → reward negativo (R aún no avanzó).
-    - Ídem para L. Umbral mínimo: 2 cm de separación en X.
-    - Si ambos en stance → señal neutra (0).
-    """
-    if foot_link_idx_local is None or len(foot_link_idx_local) < 2:
-        return torch.zeros(env.num_envs, device=gs.device)
 
     ids = contact_manager._link_ids
     if ids is None or len(ids) < 2:
         return torch.zeros(env.num_envs, device=gs.device)
 
-    # ── Contacto: p≈1 stance, p≈0 swing ─────────────────────────────────────
-    forces     = contact_manager.get_contact_forces(ids.tolist())    # (N, 2, 3)
-    force_norm = torch.norm(forces, dim=-1)                          # (N, 2)
-    force_norm = torch.nan_to_num(force_norm, nan=0.0, posinf=0.0, neginf=0.0)
-    p   = torch.sigmoid(force_norm / max(force_scale, 1e-6) - 1.0)  # (N, 2)
-    p_L = p[:, 1]   # probabilidad de stance pie L (izquierdo)
-    p_R = p[:, 0]   # probabilidad de stance pie R (derecho)
+    forces     = contact_manager.get_contact_forces(ids.tolist())  # (N, 2, 3)
+    force_norm = torch.norm(forces, dim=-1)                        # (N, 2)
 
-    # ── Posición X de cada pie ───────────────────────────────────────────────
-    foot_pos = env.robot.get_links_pos(links_idx_local=foot_link_idx_local)  # (N, 2, 3)
-    x_L = torch.nan_to_num(foot_pos[:, 0, 0], nan=0.0)  # X pie L
-    x_R = torch.nan_to_num(foot_pos[:, 1, 0], nan=0.0)  # X pie R
+    p = torch.sigmoid(force_norm / force_scale - 1.0)             # (N, 2) ∈ (0,1)
+    p_L, p_R = p[:, 0], p[:, 1]
 
-    # ── Señal por pie: tanh((x_swing - x_stance) / step_scale) ─────────────
-    # Cuando R en swing → debe estar adelante de L → queremos x_R > x_L → +1
-    # Cuando R en swing y aún está atrás de L → señal negativa → penalización
-    safe = max(step_scale, 1e-6)
-    sig_R_swing = torch.tanh((x_R - x_L) / safe)  # +1 si R adelante, -1 si R atrás
-    sig_L_swing = torch.tanh((x_L - x_R) / safe)  # +1 si L adelante, -1 si L atrás
+    alternation = p_L * (1.0 - p_R) + p_R * (1.0 - p_L)          # (N,) ∈ [0,1]
 
-    # Peso: cuánto está cada pie en swing (1 - p)
-    w_R = torch.clamp(1.0 - p_R, 0.0, 1.0)
-    w_L = torch.clamp(1.0 - p_L, 0.0, 1.0)
-
-    # Combinar ponderado; si ambos en stance → denom ≈ 0 → reward ≈ 0 (neutro)
-    denom  = w_R + w_L + 1e-6
-    reward = (w_R * sig_R_swing + w_L * sig_L_swing) / denom
-    reward = torch.nan_to_num(reward, nan=0.0, posinf=0.0, neginf=0.0)
-
-    # Solo activa con comando de movimiento
     cmd_norm = torch.norm(vel_cmd_manager.command[:, :2], dim=-1)
-    moving   = (torch.nan_to_num(cmd_norm, nan=0.0) > 0.05).float()
-    return reward * moving
+    moving   = (cmd_norm > 0.05).float()
+
+    return alternation * moving
 
 
 class BipedGaitTrainingEnv(ManagedEnvironment):
@@ -254,7 +215,22 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             ),
         )
 
-        self.terrain = self.create_terrain(self.scene)
+        self.terrain = self.scene.add_entity(
+            gs.morphs.Terrain(
+                n_subterrains=(1, 1),
+                subterrain_size=(8.0, 8.0),
+                vertical_scale=0.01, # Escala base (la controlamos más abajo)
+                subterrain_types=[["random_uniform_terrain"]],
+                subterrain_parameters={
+                    "random_uniform_terrain": {
+                        "min_height": -0.02,  # -2 cm de profundidad
+                        "max_height": 0.02,   # +2 cm de altura máxima
+                        "step": 0.01,         # Incrementos suaves
+                        "downsampled_scale": 0.2, # Suavidad entre picos
+                    },
+                },
+            )
+        ) #type: ignore
 
         self.robot = self.scene.add_entity(
             gs.morphs.MJCF(
@@ -273,38 +249,6 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             debug=True,
             GUI=self._gamepad_control,
         )
-    
-    def create_terrain(self, scene: gs.Scene):
-        """Crea un terreno con textura de cuadros y relieve aleatorio uniforme."""
-        # Carga la imagen de cuadros y la repite en mosaico
-        this_dir = os.path.dirname(os.path.abspath(__file__))
-        tile_path = os.path.join(this_dir, "checker.png")  # Asegúrate de tener esa imagen
-        checker_image = np.array(Image.open(tile_path))
-        tiled_image = np.tile(checker_image, (24, 24, 1))  # 24x24 repeticiones
-        vertical_scale = 0.02
-
-        return scene.add_entity(
-            surface=gs.surfaces.Default(
-                diffuse_texture=gs.textures.ImageTexture(
-                    image_array=tiled_image,
-                )
-            ),
-            morph=gs.morphs.Terrain(
-                pos=(-4, -4, 0),          # Centrado en (0,0) con tamaño 8x8
-                n_subterrains=(1, 1),
-                subterrain_size=(20, 20),   # Ajusta al tamaño que tenías (8x8)
-                vertical_scale=vertical_scale,     # Mantén la escala original de tu robot (1.5 cm)
-                subterrain_types=[["random_uniform_terrain"]],
-                subterrain_parameters={
-                    "random_uniform_terrain": {
-                        "min_height": 0.0,   # como tenías originalmente
-                        "max_height": 0.01,
-                        "step": vertical_scale,  # paso mínimo debe ser al menos vertical_scale
-                        "downsampled_scale": 0.001,
-                    },
-                },
-            ),
-        )
 
     def config(self):
         self._critic_foot_idx  = [self.robot.get_link("leg_p1_d").idx_local,
@@ -313,23 +257,17 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                                    self.robot.get_link("ank_i").idx_local]
         self._critic_knee_idx  = [self.robot.get_link("kne_d").idx_local,
                                    self.robot.get_link("kne_i").idx_local]
-        # Índices locales de los pies para reward_foot_alternation
-        # IMPORTANTE: _link_ids del ContactManager son índices globales del solver,
-        # NO se pueden usar como links_idx_local en get_links_pos (causa CUDA assert)
-        self._foot_alt_link_idx = [self.robot.get_link("leg_p1_i").idx_local,
-                                    self.robot.get_link("leg_p1_d").idx_local]
-        
-        self.terrain_manager = TerrainManager(self)
 
         self.robot_manager = EntityManager(
             self,
             entity_attr="robot",
             on_reset={
                 "position": {
-                    "fn": reset.randomize_terrain_position,  # en lugar de reset.position
+                    "fn": reset.position, #type: ignore
                     "params": {
-                        "height_offset": HEIGHT_OFFSET,      # tu offset original
-                        "terrain_manager": self.terrain_manager,
+                        "position":      INITIAL_BODY_POSITION,
+                        "quat":          INITIAL_QUAT,
+                        "zero_velocity": True,
                     },
                 },
             },
@@ -345,25 +283,25 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             damping=NoisyValue(0.5, 0.25),
             frictionloss=NoisyValue(0.15, 0.1),
             default_pos={
-                "BD":   NoisyValue(0.943, 0.05),
-                "HD":   NoisyValue(0.0, 0.05),
-                "HI":   NoisyValue(0.0, 0.05),
-                "BI":   NoisyValue(-0.943, 0.05),
-                "HEAD": NoisyValue(0.0, 0.05),
-                "CD":   NoisyValue(0.0, 0.05),
-                "LD":   NoisyValue(-0.22, 0.05),
-                "KD":   NoisyValue(-0.236, 0.05),
-                "FD":   NoisyValue(-0.0157, 0.05),
-                "CI":   NoisyValue(0.22, 0.05),
-                "LI":   NoisyValue(0.157, 0.05),
-                "KI":   NoisyValue(0.0, 0.05),
-                "FI":   NoisyValue(0.0157, 0.05),
+                "BD":   NoisyValue(0.943, 0.01),
+                "HD":   NoisyValue(0.0, 0.01),
+                "HI":   NoisyValue(0.0, 0.01),
+                "BI":   NoisyValue(-0.943, 0.01),
+                "HEAD": NoisyValue(0.0, 0.01),
+                "CD":   NoisyValue(0.0, 0.01),
+                "LD":   NoisyValue(-0.22, 0.01),
+                "KD":   NoisyValue(-0.236, 0.01),
+                "FD":   NoisyValue(-0.0157, 0.01),
+                "CI":   NoisyValue(0.22, 0.01),
+                "LI":   NoisyValue(0.157, 0.01),
+                "KI":   NoisyValue(0.0, 0.01),
+                "FI":   NoisyValue(0.0157, 0.01),
             },
             max_force={
                 "BD": 2.0, "HD": 2.0, "HI": 2.0, "BI": 2.0,
                 "HEAD": 1.0,
-                "CD": 3.0, "LD": 3.0, "KD": 3.0, "FD": 1.0,
-                "CI": 3.0, "LI": 3.0, "KI": 3.0, "FI": 1.0,
+                "CD": 3.0, "LD": 3.0, "KD": 3.0, "FD": 2.5,
+                "CI": 3.0, "LI": 3.0, "KI": 3.0, "FI": 2.5,
             },
         )
 
@@ -400,10 +338,10 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
             self,
             range={ #type: ignore
                 "lin_vel_x": [0.0, 0.7],
-                "lin_vel_y": [0.0, 0.3],
+                "lin_vel_y": [0.0, 0.0],
                 "ang_vel_z": [-0.5, 0.5],
             },
-            standing_probability=0.0,
+            standing_probability=0.15,
             resample_time_sec=3.0,
             debug_visualizer=True,
             debug_visualizer_cfg={"envs_idx": [0], "arrow_offset": 0.12}, #type: ignore
@@ -427,12 +365,12 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "fn": reward_alive_bonus,
                 },
                 "upright_stability": {
-                    "weight": 1.3, # MODIFICADO: Relajado de 1.5 a 1.0
+                    "weight": 1.0, # MODIFICADO: Relajado de 1.5 a 1.0
                     "fn": reward_upright_stability,
                     "params": {"entity_manager": self.robot_manager},
                 },
                 "tracking_lin_vel": {
-                    "weight": 1.3,
+                    "weight": 1.5,
                     "fn": reward_tracking_lin_vel,
                     "params": {
                         "vel_cmd_manager": self.velocity_command,
@@ -455,7 +393,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"contact_manager": self.feet_contact_manager},
                 },
                 "foot_height_reward": {
-                    "weight": 1.5, # MODIFICADO: Aumentado de 0.5 a 1.2
+                    "weight": 1.2, # MODIFICADO: Aumentado de 0.5 a 1.2
                     "fn": self.gait_command_manager.foot_height_reward,
                 },
                 "feet_air_time": {
@@ -468,19 +406,17 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                         "vel_cmd_manager":    self.velocity_command,
                     },
                 },
-                "foot_step_alternation": {
-                    "weight": 2.0,
-                    "fn": reward_foot_step_alternation,
+                "foot_alternation": {
+                    "weight": 0.9,
+                    "fn": reward_foot_alternation,
                     "params": {
-                        "contact_manager":     self.feet_contact_manager,
-                        "vel_cmd_manager":     self.velocity_command,
-                        "foot_link_idx_local": self._foot_alt_link_idx,
-                        "force_scale":         5.0,
-                        "step_scale":          0.02,  # 2 cm = separación mínima para recompensa
+                        "contact_manager":  self.feet_contact_manager,
+                        "vel_cmd_manager":  self.velocity_command,
+                        "force_scale":      5.0,
                     },
                 },
                 "ang_vel_xy": {
-                    "weight": -1.2,
+                    "weight": -0.7,
                     "fn": reward_angular_velocity_penalty,
                     "params": {"entity_manager": self.robot_manager, "max_val": 5.0},
                 },
@@ -490,17 +426,17 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"entity_manager": self.robot_manager, "max_val": 1.0},
                 },
                 "body_acceleration": {
-                    "weight": -0.6,
+                    "weight": -0.3,
                     "fn": reward_body_acceleration_penalty,
                     "params": {"entity_manager": self.robot_manager, "max_val": 20.0},
                 },
                 "action_rate": {
-                    "weight": -0.6,
+                    "weight": -0.3,
                     "fn": reward_action_rate_penalty,
                     "params": {"max_val": 2.0},
                 },
                 "energy": {
-                    "weight": -0.6,
+                    "weight": -0.4,
                     "fn": reward_energy_penalty,
                     "params": {"max_val": 1.5},
                 },
@@ -510,7 +446,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"contact_manager": self.knee_contact_manager},
                 },
                 "base_height": {
-                    "weight": -0.5, # MODIFICADO: Relajado de -0.5 a -0.2
+                    "weight": -0.2, # MODIFICADO: Relajado de -0.5 a -0.2
                     "fn": reward_base_height,
                     "params": {
                         "entity_manager": self.robot_manager,
@@ -519,12 +455,12 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     },
                 },
                 "dof_pos_deviation": {
-                    "weight": -0.4,
+                    "weight": -0.5,
                     "fn": reward_dof_pos_deviation,
                     "params": {"max_val": 0.5},
                 },
                 "lateral_drift": {
-                    "weight": -0.2,
+                    "weight": -0.3,
                     "fn": reward_lateral_drift_penalty,
                     "params": {
                         "entity_manager":  self.robot_manager,
@@ -553,7 +489,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                 "fall_over": {
                     "fn": terminations.bad_orientation,
                     "params": {
-                        "limit_angle":    30.0,
+                        "limit_angle":    45.0,
                         "entity_manager": self.robot_manager,
                     },
                 },
@@ -683,11 +619,6 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
     def reset(self, envs_idx: list[int] | None = None):
         result = super().reset(envs_idx)
         if envs_idx is not None:
-            idx = torch.tensor(envs_idx, device=gs.device)
-            if hasattr(self, '_prev_lin_vel') and self._prev_lin_vel is not None:
-                self._prev_lin_vel[idx] = 0.0
-            if hasattr(self, '_prev_actions_reward') and self._prev_actions_reward is not None:
-                self._prev_actions_reward[idx] = 0.0
             self.update_curriculum()
         return result
 
