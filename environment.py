@@ -21,12 +21,7 @@ INITIAL_BODY_POSITION        = [0.0, 0.0, HEIGHT_OFFSET]
 INITIAL_QUAT                 = [1.0, 0.0, 0.0, 0.0]
 CURRICULUM_CHECK_EVERY_STEPS = 50
 
-<<<<<<< HEAD
-=======
-# --- NUEVA CONSTANTE: Dificultad del terreno ---
-TERRAIN_VERTICAL_SCALE       = 0.015  # 1.5 cm de irregularidad (súbelo gradualmente)
-
->>>>>>> 67b284dccf73f87cf58c4af410991a61a88a0275
+# Valores de ruido sim2real para las observaciones del actor policy
 NOISE_SCALES = {
     "ang_vel": 0.05,
     "gravity":  0.05,
@@ -444,20 +439,12 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"max_val": 1.5},
                 },
                 "bad_contact": {
-<<<<<<< HEAD
-                    "weight": -0.6,
-=======
-                    "weight": -1.5, # MODIFICADO: Penalización severa por rozar la rodilla (era -0.6)
->>>>>>> 67b284dccf73f87cf58c4af410991a61a88a0275
+                    "weight": -0.8,
                     "fn": reward_contact_binary_penalty,
                     "params": {"contact_manager": self.knee_contact_manager},
                 },
                 "base_height": {
-<<<<<<< HEAD
-                    "weight": -0.5,
-=======
-                    "weight": -0.2, # MODIFICADO: Relajado de -0.5 a -0.2
->>>>>>> 67b284dccf73f87cf58c4af410991a61a88a0275
+                    "weight": -1.2,
                     "fn": reward_base_height,
                     "params": {
                         "entity_manager": self.robot_manager,
