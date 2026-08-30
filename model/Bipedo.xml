@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <?xml version="1.0" ?>
 <!-- Generated using onshape-to-robot -->
 <!-- Onshape https://cad.onshape.com/documents/c4b361cf4ba327d1f57e882d/w/2ee79dd7520cc42214465bb5/e/7518343c4784b4c1e8e306be -->
@@ -282,3 +283,295 @@
   </actuator>
   <equality/>
 </mujoco>
+=======
+<?xml version="1.0" ?>
+<!-- Generated using onshape-to-robot -->
+<!-- Onshape https://cad.onshape.com/documents/c4b361cf4ba327d1f57e882d/w/2ee79dd7520cc42214465bb5/e/7518343c4784b4c1e8e306be -->
+<!-- AnalyzeSimToReal + MathCodeOptimizer:
+     Las 5 collision meshes de servo (srvhb_*, srvhad) fueron sustituidas por
+     primitivas box de ~22x12x30 mm.  Los STL originales (321 KB c/u, ~6 400
+     triángulos) se conservan SÓLO en las geoms visuales (contype=0, sin coste
+     de colisión).  Reducción esperada de startup: 60-80 %.
+     frictionloss sincronizado a 0.15 (= ActuatorManager NoisyValue base). -->
+<mujoco model="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model">
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+  <default>
+    <default class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model">
+      <joint frictionloss="0.15" armature="0.005"/><!-- AnalyzeSimToReal: era 0.1; sincronizado con ActuatorManager(frictionloss=NoisyValue(0.15)) -->
+      <position kp="50" dampratio="1"/>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <geom group="3"/>
+      </default>
+    </default>
+  </default>
+  <worldbody>
+    <!-- Link cadera -->
+    <body name="cadera" pos="0 0 0" quat="1 0 0 0" childclass="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model">
+      <freejoint name="cadera_freejoint"/>
+      <inertial pos="0.00294425 0 0.0272494" mass="0.338339" fullinertia="0.000896651 0.000499589 0.000475816 -0 -2.1032e-05 0"/>
+      <!-- Part pecho -->
+      <geom type="mesh" class="visual" pos="-0.0493026 -0.000778222 0.084" quat="0.5 0.5 0.5 0.5" mesh="pecho" material="pecho_material"/>
+      <geom type="mesh" class="collision" pos="-0.0493026 -0.000778222 0.084" quat="0.5 0.5 0.5 0.5" mesh="pecho" material="pecho_material"/>
+      <!-- Part cbh_d -->
+      <geom type="mesh" class="visual" pos="0.0129907 0.0294144 0.0205215" quat="0.707107 0 0 -0.707107" mesh="cbh_d" material="cbh_d_material"/>
+      <geom type="mesh" class="collision" pos="0.0129907 0.0294144 0.0205215" quat="0.707107 0 0 -0.707107" mesh="cbh_d" material="cbh_d_material"/>
+      <!-- Part cadera -->
+      <geom type="mesh" class="visual" pos="0.0218907 -0.045 0" quat="0 0 0 1" mesh="cadera" material="cadera_material"/>
+      <geom type="mesh" class="collision" pos="0.0218907 -0.045 0" quat="0 0 0 1" mesh="cadera" material="cadera_material"/>
+      <!-- Part cbh_i -->
+      <geom type="mesh" class="visual" pos="-0.0110093 -0.0294144 0.0205215" quat="0.707107 -0 0 0.707107" mesh="cbh_i" material="cbh_i_material"/>
+      <geom type="mesh" class="collision" pos="-0.0110093 -0.0294144 0.0205215" quat="0.707107 -0 0 0.707107" mesh="cbh_i" material="cbh_i_material"/>
+      <!-- Part part_1 -->
+      <geom type="mesh" class="visual" pos="0.0210946 -0.0204496 0.0915" quat="0.5 0.5 -0.5 -0.5" mesh="part_1" material="part_1_material"/>
+      <geom type="mesh" class="collision" pos="0.0210946 -0.0204496 0.0915" quat="0.5 0.5 -0.5 -0.5" mesh="part_1" material="part_1_material"/>
+      <!-- Part srvhb_i (visual conservado; collision → box ~22x12x30 mm) -->
+      <geom type="mesh" class="visual" pos="-0.00622232 0.0185884 0.0437106" quat="0.707107 0 0 0.707107" mesh="srvhb_i" material="srvhb_i_material"/>
+      <geom type="box"  class="collision" pos="-0.00622232 0.0185884 0.0437106" quat="0.707107 0 0 0.707107" size="0.011 0.006 0.015"/>
+      <!-- Part part_1_2 -->
+      <geom type="mesh" class="visual" pos="0.0210946 0.0204496 0.0365" quat="0.5 -0.5 -0.5 0.5" mesh="part_1" material="part_1_material"/>
+      <geom type="mesh" class="collision" pos="0.0210946 0.0204496 0.0365" quat="0.5 -0.5 -0.5 0.5" mesh="part_1" material="part_1_material"/>
+      <!-- Part srvhb_d (visual conservado; collision → box ~22x12x30 mm) -->
+      <geom type="mesh" class="visual" pos="-0.00622232 0.0594116 0.0437106" quat="0.707107 0 0 0.707107" mesh="srvhb_d" material="srvhb_d_material"/>
+      <geom type="box"  class="collision" pos="-0.00622232 0.0594116 0.0437106" quat="0.707107 0 0 0.707107" size="0.011 0.006 0.015"/>
+      <!-- Part part_1_3 -->
+      <geom type="mesh" class="visual" pos="-0.0265093 -0.0129996 0.00636691" quat="0 0.707107 -0.707107 0" mesh="part_1" material="part_1_material"/>
+      <geom type="mesh" class="collision" pos="-0.0265093 -0.0129996 0.00636691" quat="0 0.707107 -0.707107 0" mesh="part_1" material="part_1_material"/>
+      <!-- Part srvhb_i_2 (visual conservado; collision → box ~22x12x30 mm) -->
+      <geom type="mesh" class="visual" pos="0.0212801 0.0260384 -0.02095" quat="0.5 -0.5 -0.5 0.5" mesh="srvhb_i__2" material="srvhb_i__2_material"/>
+      <geom type="box"  class="collision" pos="0.0212801 0.0260384 -0.02095" quat="0.5 -0.5 -0.5 0.5" size="0.011 0.006 0.015"/>
+      <!-- Part part_1_4 -->
+      <geom type="mesh" class="visual" pos="0.0284907 0.0129996 0.00636691" quat="0 -0.707107 -0.707107 -0" mesh="part_1" material="part_1_material"/>
+      <geom type="mesh" class="collision" pos="0.0284907 0.0129996 0.00636691" quat="0 -0.707107 -0.707107 -0" mesh="part_1" material="part_1_material"/>
+      <!-- Part srvhb_d_2 (visual conservado; collision → box ~22x12x30 mm) -->
+      <geom type="mesh" class="visual" pos="0.0212801 0.0519616 -0.02095" quat="0.5 -0.5 -0.5 0.5" mesh="srvhb_d__2" material="srvhb_d__2_material"/>
+      <geom type="box"  class="collision" pos="0.0212801 0.0519616 -0.02095" quat="0.5 -0.5 -0.5 0.5" size="0.011 0.006 0.015"/>
+      <!-- Link shl_d -->
+      <body name="shl_d" pos="0.00362768 0.0644116 0.0749106" quat="0 -0 -0.707107 0.707107">
+        <!-- Joint from cadera to shl_d -->
+        <joint axis="0 0 1" name="HD" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+        <inertial pos="0.000596761 0.00741114 -0.0111482" mass="0.0131499" fullinertia="3.70945e-06 8.76235e-06 8.32173e-06 -4.024e-08 6.8747e-08 1.19337e-06"/>
+        <!-- Part shl_d -->
+        <geom type="mesh" class="visual" pos="0.0275 0.0257453 -0.0411441" quat="0.675819 0.208011 0.208011 -0.675819" mesh="shl_d" material="shl_d_material"/>
+        <geom type="mesh" class="collision" pos="0.0275 0.0257453 -0.0411441" quat="0.675819 0.208011 0.208011 -0.675819" mesh="shl_d" material="shl_d_material"/>
+        <!-- Link asrvhb_d -->
+        <body name="asrvhb_d" pos="0.02625 0.0202432 -0.0297694" quat="0.624962 -0.330791 0.624962 -0.330791">
+          <!-- Joint from shl_d to asrvhb_d -->
+          <joint axis="0 0 1" name="BD" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+          <inertial pos="0.000796543 0.0191979 -0.0260003" mass="0.0886941" fullinertia="6.90139e-05 2.27292e-05 5.4134e-05 1.17093e-06 1.30926e-07 2.39711e-06"/>
+          <!-- Part cbh_d_2 -->
+          <geom type="mesh" class="visual" pos="-0.00211443 0.0543891 -0.0165657" quat="0.707107 0.707107 0 0" mesh="cbh_d" material="cbh_d_material"/>
+          <geom type="mesh" class="collision" pos="-0.00211443 0.0543891 -0.0165657" quat="0.707107 0.707107 0 0" mesh="cbh_d" material="cbh_d_material"/>
+          <!-- Part brz_d -->
+          <geom type="mesh" class="visual" pos="0.0153743 0.112253 -0.000565676" quat="0.707107 0.707107 0 0" mesh="brz_d" material="brz_d_material"/>
+          <geom type="mesh" class="collision" pos="0.0153743 0.112253 -0.000565676" quat="0.707107 0.707107 0 0" mesh="brz_d" material="brz_d_material"/>
+          <!-- Part part_1_5 -->
+          <geom type="mesh" class="visual" pos="0.0174669 0.0384106 -0.0439621" quat="0.707107 0 -0.707107 0" mesh="part_1" material="part_1_material"/>
+          <geom type="mesh" class="collision" pos="0.0174669 0.0384106 -0.0439621" quat="0.707107 0 -0.707107 0" mesh="part_1" material="part_1_material"/>
+          <!-- Part srvhb_d_3 (visual conservado; collision → box ~22x12x30 mm) -->
+          <geom type="mesh" class="visual" pos="-0.00985 0.0312 -0.005" quat="0.5 0.5 -0.5 0.5" mesh="srvhb_d" material="srvhb_d_material"/>
+          <geom type="box"  class="collision" pos="-0.00985 0.0312 -0.005" quat="0.5 0.5 -0.5 0.5" size="0.011 0.006 0.015"/>
+        </body>
+      </body>
+      <!-- Link shl_i -->
+      <body name="shl_i" pos="0.00362768 -0.0644116 0.0749106" quat="0 -0 -0.707107 -0.707107">
+        <!-- Joint from cadera to shl_i -->
+        <joint axis="0 0 1" name="HI" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+        <inertial pos="-0.000596761 -0.00741114 -0.0111482" mass="0.0131499" fullinertia="3.70945e-06 8.76235e-06 8.32173e-06 -4.024e-08 -6.8747e-08 -1.19337e-06"/>
+        <!-- Part shl_i -->
+        <geom type="mesh" class="visual" pos="-0.0275 -0.0257453 -0.0411441" quat="0.675819 -0.208011 0.208011 0.675819" mesh="shl_i" material="shl_i_material"/>
+        <geom type="mesh" class="collision" pos="-0.0275 -0.0257453 -0.0411441" quat="0.675819 -0.208011 0.208011 0.675819" mesh="shl_i" material="shl_i_material"/>
+        <!-- Link asrvhb_i -->
+        <body name="asrvhb_i" pos="0.02635 -0.0202432 -0.0297694" quat="0.330791 -0.624962 0.330791 -0.624962">
+          <!-- Joint from shl_i to asrvhb_i -->
+          <joint axis="0 0 1" name="BI" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+          <inertial pos="-0.000796543 0.0191979 -0.0260003" mass="0.0886941" fullinertia="6.90139e-05 2.27292e-05 5.4134e-05 -1.17093e-06 -1.30926e-07 2.39711e-06"/>
+          <!-- Part cbh_i_2 -->
+          <geom type="mesh" class="visual" pos="0.00211443 0.0543891 -0.0405657" quat="0 0 -0.707107 0.707107" mesh="cbh_i" material="cbh_i_material"/>
+          <geom type="mesh" class="collision" pos="0.00211443 0.0543891 -0.0405657" quat="0 0 -0.707107 0.707107" mesh="cbh_i" material="cbh_i_material"/>
+          <!-- Part brz_i -->
+          <geom type="mesh" class="visual" pos="-0.0153743 0.112253 -0.0565657" quat="0 0 -0.707107 0.707107" mesh="brz_i" material="brz_i_material"/>
+          <geom type="mesh" class="collision" pos="-0.0153743 0.112253 -0.0565657" quat="0 0 -0.707107 0.707107" mesh="brz_i" material="brz_i_material"/>
+          <!-- Part part_1_6 -->
+          <geom type="mesh" class="visual" pos="-0.0174669 -0.0165894 -0.0439621" quat="0 0.707107 -0 0.707107" mesh="part_1" material="part_1_material"/>
+          <geom type="mesh" class="collision" pos="-0.0174669 -0.0165894 -0.0439621" quat="0 0.707107 -0 0.707107" mesh="part_1" material="part_1_material"/>
+          <!-- Part srvhb_i_3 (visual conservado; collision → box ~22x12x30 mm) -->
+          <geom type="mesh" class="visual" pos="0.00985 0.0312 -0.083" quat="0.5 0.5 0.5 -0.5" mesh="srvhb_i" material="srvhb_i_material"/>
+          <geom type="box"  class="collision" pos="0.00985 0.0312 -0.083" quat="0.5 0.5 0.5 -0.5" size="0.011 0.006 0.015"/>
+        </body>
+      </body>
+      <!-- Link srvhad -->
+      <body name="srvhad" pos="-0.0108393 0 0.084" quat="0 -0.707107 0.707107 0">
+        <!-- Joint from cadera to srvhad -->
+        <joint axis="0 0 1" name="HEAD" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+        <inertial pos="-1.38699e-06 -0.0105666 -0.0236383" mass="0.0603929" fullinertia="1.70344e-05 1.02199e-05 1.06795e-05 1.86e-10 -1.197e-09 -4.09078e-07"/>
+        <!-- Part srvhad (visual conservado; collision → box ~22x12x30 mm) -->
+        <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="srvhad" material="srvhad_material"/>
+        <geom type="box"  class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" size="0.011 0.006 0.015"/>
+      </body>
+      <!-- Link kne_i -->
+      <body name="kne_i" pos="-0.00991993 -0.0569616 -0.0111" quat="0.5 -0.5 0.5 0.5">
+        <!-- Joint from cadera to kne_i -->
+        <joint axis="0 0 1" name="CI" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+        <inertial pos="0.0386707 0 0.0263" mass="0.0235968" fullinertia="1.41517e-05 2.73331e-05 1.54001e-05 0 0 0"/>
+        <!-- Part kne_i -->
+        <geom type="mesh" class="visual" pos="0.096 0.012 0.0538" quat="0.5 0.5 -0.5 -0.5" mesh="kne_i" material="kne_i_material"/>
+        <geom type="mesh" class="collision" pos="0.096 0.012 0.0538" quat="0.5 0.5 -0.5 -0.5" mesh="kne_i" material="kne_i_material"/>
+        <!-- Link leg_d -->
+        <body name="leg_d" pos="0.084 -0 -0" quat="0 -0.707107 -0.707107 0">
+          <!-- Joint from kne_i to leg_d -->
+          <joint axis="0 0 1" name="LI" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+          <inertial pos="-0.000866347 0.0168749 -0.0254393" mass="0.145559" fullinertia="0.000157846 2.91403e-05 0.000140248 -3.557e-08 -2.93618e-07 -8.92995e-07"/>
+          <!-- Part part_1_7 -->
+          <geom type="mesh" class="visual" pos="-0.0174669 0.0165894 -0.0439621" quat="0 0.707107 -0 0.707107" mesh="part_1" material="part_1_material"/>
+          <geom type="mesh" class="collision" pos="-0.0174669 0.0165894 -0.0439621" quat="0 0.707107 -0 0.707107" mesh="part_1" material="part_1_material"/>
+          <!-- Part srvhb_d_4 (visual conservado; collision → box ~22x12x30 mm) -->
+          <geom type="mesh" class="visual" pos="0.00985 0.0238 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="srvhb_d__2" material="srvhb_d__2_material"/>
+          <geom type="box"  class="collision" pos="0.00985 0.0238 -0.005" quat="0.5 -0.5 -0.5 -0.5" size="0.011 0.006 0.015"/>
+          <!-- Part part_1_8 -->
+          <geom type="mesh" class="visual" pos="-0.0174669 -0.0384106 -0.0439621" quat="0 0.707107 -0 0.707107" mesh="part_1" material="part_1_material"/>
+          <geom type="mesh" class="collision" pos="-0.0174669 -0.0384106 -0.0439621" quat="0 0.707107 -0 0.707107" mesh="part_1" material="part_1_material"/>
+          <!-- Part srvhb_d_5 (visual conservado; collision → box ~22x12x30 mm) -->
+          <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="srvhb_d__2" material="srvhb_d__2_material"/>
+          <geom type="box"  class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" size="0.011 0.006 0.015"/>
+          <!-- Link ank_i -->
+          <body name="ank_i" pos="-0 0.055 0" quat="0 1 0 0">
+            <!-- Joint from leg_d to ank_i -->
+            <joint axis="0 0 1" name="KI" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+            <inertial pos="-0 -0.0316057 0.0260561" mass="0.0211042" fullinertia="1.32498e-05 1.21762e-05 1.30198e-05 -0 -0 -6.5907e-08"/>
+            <!-- Part ank_i -->
+            <geom type="mesh" class="visual" pos="0.0275 -0.075 0.0138" quat="0.5 -0.5 -0.5 -0.5" mesh="ank_i" material="ank_i_material"/>
+            <geom type="mesh" class="collision" pos="0.0275 -0.075 0.0138" quat="0.5 -0.5 -0.5 -0.5" mesh="ank_i" material="ank_i_material"/>
+            <!-- Link leg_p1_i -->
+            <body name="leg_p1_i" pos="-0.0263 -0.063 0.0258" quat="0.5 -0.5 -0.5 0.5">
+              <!-- Joint from ank_i to leg_p1_i -->
+              <joint axis="0 0 1" name="FI" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+              <inertial pos="-0.0036561 0.0107002 -0.0233688" mass="0.0987472" fullinertia="6.58678e-05 5.02247e-05 2.57289e-05 7.5748e-08 1.45183e-06 4.03478e-07"/>
+              <!-- Part ft_i -->
+              <geom type="mesh" class="visual" pos="-0.01085 0.0424106 -0.0790657" quat="0.707107 0 0 -0.707107" mesh="ft_i" material="ft_i_material"/>
+              <geom type="mesh" class="collision" pos="-0.01085 0.0424106 -0.0790657" quat="0.707107 0 0 -0.707107" mesh="ft_i" material="ft_i_material"/>
+              <!-- Part part_1_9 -->
+              <geom type="mesh" class="visual" pos="-0.0174669 -0.0165894 -0.0439621" quat="0 -0.707107 0 -0.707107" mesh="part_1" material="part_1_material"/>
+              <geom type="mesh" class="collision" pos="-0.0174669 -0.0165894 -0.0439621" quat="0 -0.707107 0 -0.707107" mesh="part_1" material="part_1_material"/>
+              <!-- Part srvhb_i_4 (visual conservado; collision → box ~22x12x30 mm) -->
+              <geom type="mesh" class="visual" pos="0.00985 0.0312 -0.083" quat="0.5 0.5 0.5 -0.5" mesh="srvhb_i__2" material="srvhb_i__2_material"/>
+              <geom type="box"  class="collision" pos="0.00985 0.0312 -0.083" quat="0.5 0.5 0.5 -0.5" size="0.011 0.006 0.015"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Link kne_d -->
+      <body name="kne_d" pos="-0.00991993 0.0569616 -0.0111" quat="0.5 0.5 0.5 -0.5">
+        <!-- Joint from cadera to kne_d -->
+        <joint axis="0 0 1" name="CD" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+        <inertial pos="0.0386707 -0 0.0263" mass="0.0235968" fullinertia="1.41517e-05 2.73331e-05 1.54001e-05 -0 0 0"/>
+        <!-- Part kne_d -->
+        <geom type="mesh" class="visual" pos="0.096 -0.012 -0.0012" quat="0.5 -0.5 -0.5 0.5" mesh="kne_d" material="kne_d_material"/>
+        <geom type="mesh" class="collision" pos="0.096 -0.012 -0.0012" quat="0.5 -0.5 -0.5 0.5" mesh="kne_d" material="kne_d_material"/>
+        <!-- Link leg_i -->
+        <body name="leg_i" pos="0.084 0 0" quat="0 -0.707107 0.707107 -0">
+          <!-- Joint from kne_d to leg_i -->
+          <joint axis="0 0 1" name="LD" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+          <inertial pos="-0.000866347 -0.0168749 -0.0254393" mass="0.145559" fullinertia="0.000157846 2.91403e-05 0.000140248 3.557e-08 -2.93618e-07 8.92995e-07"/>
+          <!-- Part part_1_10 -->
+          <geom type="mesh" class="visual" pos="-0.0174669 -0.0165894 -0.0439621" quat="0 -0.707107 -0 -0.707107" mesh="part_1" material="part_1_material"/>
+          <geom type="mesh" class="collision" pos="-0.0174669 -0.0165894 -0.0439621" quat="0 -0.707107 -0 -0.707107" mesh="part_1" material="part_1_material"/>
+          <!-- Part srvhb_i_5 (visual conservado; collision → box ~22x12x30 mm) -->
+          <geom type="mesh" class="visual" pos="0.00985 0.0312 -0.083" quat="0.5 0.5 0.5 -0.5" mesh="srvhb_i__2" material="srvhb_i__2_material"/>
+          <geom type="box"  class="collision" pos="0.00985 0.0312 -0.083" quat="0.5 0.5 0.5 -0.5" size="0.011 0.006 0.015"/>
+          <!-- Part part_1_11 -->
+          <geom type="mesh" class="visual" pos="-0.0174669 -0.0715894 -0.0439621" quat="0 -0.707107 -0 -0.707107" mesh="part_1" material="part_1_material"/>
+          <geom type="mesh" class="collision" pos="-0.0174669 -0.0715894 -0.0439621" quat="0 -0.707107 -0 -0.707107" mesh="part_1" material="part_1_material"/>
+          <!-- Part srvhb_i_6 (visual conservado; collision → box ~22x12x30 mm) -->
+          <geom type="mesh" class="visual" pos="0.00985 -0.0238 -0.083" quat="0.5 0.5 0.5 -0.5" mesh="srvhb_i__2" material="srvhb_i__2_material"/>
+          <geom type="box"  class="collision" pos="0.00985 -0.0238 -0.083" quat="0.5 0.5 0.5 -0.5" size="0.011 0.006 0.015"/>
+          <!-- Link ank_d -->
+          <body name="ank_d" pos="0 -0.055 0" quat="0 1 0 0">
+            <!-- Joint from leg_i to ank_d -->
+            <joint axis="0 0 1" name="KD" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+            <inertial pos="-0 0.0316057 0.0265439" mass="0.0211042" fullinertia="1.32498e-05 1.21762e-05 1.30198e-05 0 0 -6.5907e-08"/>
+            <!-- Part ank_d -->
+            <geom type="mesh" class="visual" pos="0.0275 0.075 0.0388" quat="0.5 0.5 0.5 -0.5" mesh="ank_d" material="ank_d_material"/>
+            <geom type="mesh" class="collision" pos="0.0275 0.075 0.0388" quat="0.5 0.5 0.5 -0.5" mesh="ank_d" material="ank_d_material"/>
+            <!-- Link leg_p1_d -->
+            <body name="leg_p1_d" pos="-0.0263 0.063 0.0268" quat="0.5 0.5 -0.5 -0.5">
+              <!-- Joint from ank_d to leg_p1_d -->
+              <joint axis="0 0 1" name="FD" type="hinge" range="-1.5708 1.5708" frictionloss="1.0"/>
+              <inertial pos="-0.00372184 -0.0107002 -0.0233688" mass="0.0987472" fullinertia="6.58678e-05 5.03274e-05 2.58317e-05 -7.7114e-08 1.48951e-06 -4.03478e-07"/>
+              <!-- Part ft_d -->
+              <geom type="mesh" class="visual" pos="-0.01235 -0.0424106 -0.0790657" quat="0.707107 -0 -0 0.707107" mesh="ft_d" material="ft_d_material"/>
+              <geom type="mesh" class="collision" pos="-0.01235 -0.0424106 -0.0790657" quat="0.707107 -0 -0 0.707107" mesh="ft_d" material="ft_d_material"/>
+              <!-- Part part_1_12 -->
+              <geom type="mesh" class="visual" pos="-0.0174669 -0.0384106 -0.0439621" quat="0 0.707107 0 0.707107" mesh="part_1" material="part_1_material"/>
+              <geom type="mesh" class="collision" pos="-0.0174669 -0.0384106 -0.0439621" quat="0 0.707107 0 0.707107" mesh="part_1" material="part_1_material"/>
+              <!-- Part srvhb_d_6 (visual conservado; collision → box ~22x12x30 mm) -->
+              <geom type="mesh" class="visual" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" mesh="srvhb_d__2" material="srvhb_d__2_material"/>
+              <geom type="box"  class="collision" pos="0.00985 -0.0312 -0.005" quat="0.5 -0.5 -0.5 -0.5" size="0.011 0.006 0.015"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <asset>
+    <mesh file="kne_d.stl"/>
+    <mesh file="srvhad.stl"/>
+    <mesh file="shl_i.stl"/>
+    <mesh file="ft_i.stl"/>
+    <mesh file="cbh_d.stl"/>
+    <mesh file="brz_d.stl"/>
+    <mesh file="shl_d.stl"/>
+    <mesh file="ank_i.stl"/>
+    <mesh file="srvhb_d.stl"/>
+    <mesh file="kne_i.stl"/>
+    <mesh file="part_1.stl"/>
+    <mesh file="pecho.stl"/>
+    <mesh file="cbh_i.stl"/>
+    <mesh file="srvhb_d__2.stl"/>
+    <mesh file="ank_d.stl"/>
+    <mesh file="srvhb_i__2.stl"/>
+    <mesh file="ft_d.stl"/>
+    <mesh file="cadera.stl"/>
+    <mesh file="brz_i.stl"/>
+    <mesh file="srvhb_i.stl"/>
+    <material name="pecho_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="cbh_d_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="cadera_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="cbh_i_material" rgba="1 0 0 1"/>
+    <material name="part_1_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="srvhb_i_material" rgba="1 0 0 1"/>
+    <material name="srvhb_d_material" rgba="0.301961 0.301961 0.301961 1"/>
+    <material name="srvhb_i__2_material" rgba="1 0 0 1"/>
+    <material name="srvhb_d__2_material" rgba="0.301961 0.301961 0.301961 1"/>
+    <material name="shl_d_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="brz_d_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="shl_i_material" rgba="1 0 0 1"/>
+    <material name="brz_i_material" rgba="1 0 0 1"/>
+    <material name="srvhad_material" rgba="0.972549 0.529412 0.00392157 1"/>
+    <material name="kne_i_material" rgba="1 0 0 1"/>
+    <material name="ank_i_material" rgba="1 0 0 1"/>
+    <material name="ft_i_material" rgba="1 0 0 1"/>
+    <material name="kne_d_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="ank_d_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="ft_d_material" rgba="0.615686 0.811765 0.929412 1"/>
+  </asset>
+  <actuator>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="HD" joint="HD" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="BD" joint="BD" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="HI" joint="HI" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="BI" joint="BI" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="HEAD" joint="HEAD" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="CI" joint="CI" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="LI" joint="LI" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="KI" joint="KI" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="FI" joint="FI" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="CD" joint="CD" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="LD" joint="LD" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="KD" joint="KD" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+    <position class="d:\USC\Proyectos\BPD_RBT_USC\Robot_Bipedo_USC\model" name="FD" joint="FD" kp="30.0" kv="3.0" forcerange="-10.0 10.0" inheritrange="1"/>
+  </actuator>
+  <equality/>
+</mujoco>
+>>>>>>> Transfer-Learning-branch
