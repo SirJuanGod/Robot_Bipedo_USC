@@ -1,8 +1,6 @@
 import os
 import copy
 import torch
-import shutil
-import pickle
 import argparse
 from importlib import metadata
 import genesis as gs
@@ -12,6 +10,12 @@ from genesis_forge.wrappers import (
     RslRlWrapper,
 )
 from environment import BipedGaitTrainingEnv
+from ppo_cfg    import training_cfg   # ScaffoldRL: config de red y algoritmo
+from run_logger import (               # ScaffoldRL: observabilidad del experimento
+    setup_log_dir,
+    save_cfg,
+    print_run_summary,
+)
 
 try:
     try:
@@ -28,8 +32,8 @@ from rsl_rl.runners import OnPolicyRunner
 EXPERIMENT_NAME = "bipedo-usc-v1"
 
 parser = argparse.ArgumentParser(add_help=True)
-parser.add_argument("-n", "--num_envs",        type=int,   default=4096)
-parser.add_argument("--max_iterations",        type=int,   default=4000)
+parser.add_argument("-n", "--num_envs",        type=int,   default=2)
+parser.add_argument("--max_iterations",        type=int,   default=100)
 parser.add_argument("-d", "--device",          type=str,   default="gpu")
 parser.add_argument("-e", "--exp_name",        type=str,   default=EXPERIMENT_NAME)
 parser.add_argument("--resume",                action="store_true")
@@ -38,75 +42,6 @@ parser.add_argument("--record_interval",       type=int,   default=100)
 parser.add_argument("--no_video",              action="store_true", default=False,
                     help="Desactiva grabacion de video")
 args = parser.parse_args()
-
-def training_cfg(exp_name: str, max_iterations: int, num_envs: int) -> dict:
-    return {
-        "algorithm": {
-            "class_name": "PPO",
-            "clip_param":                    0.2,
-            "desired_kl":                    0.010,
-            "entropy_coef":                  0.003,
-            "gamma":                         0.99,
-            "lam":                           0.95,
-            "learning_rate":                 1e-4,
-            "max_grad_norm":                 1.0,
-            "num_learning_epochs":           5,
-            "num_mini_batches":              4,
-            "schedule":                      "adaptive",
-            "use_clipped_value_loss":        True,
-            "value_loss_coef":               1.0,
-            "normalize_advantage_per_mini_batch": True,
-            "optimizer":                     "adam",
-            "rnd_cfg":                       None,
-            "symmetry_cfg":                  None,
-        },
-
-        "actor": {
-            "class_name":      "MLPModel",
-            "hidden_dims":     [512,256, 128],
-            "activation":      "elu",
-            "obs_normalization": True,
-            "distribution_cfg": {
-                "class_name": "GaussianDistribution",
-                "init_std":   1.0,
-            },
-        },
-
-        "critic": {
-            "class_name":      "MLPModel",
-            "hidden_dims":     [1024, 512, 256, 128],
-            "activation":      "elu",
-            "obs_normalization": True,
-        },
-
-        "obs_groups": {
-            "actor":  ["policy"],            # solo sensores reales
-            "critic": ["policy", "critic"],  # policy + privilegiados del sim
-        },
-
-        "runner": {
-            "checkpoint":      -1,
-            "experiment_name": exp_name,
-            "load_run":        -1,
-            "log_interval":    1,
-            "max_iterations":  max_iterations,
-            "record_interval": args.record_interval,
-            "resume":          args.resume,
-            "resume_path":     args.resume_path,
-            "run_name":        "",
-        },
-        "runner_class_name": "OnPolicyRunner",
-
-        "seed": 1,
-        "num_steps_per_env": round(
-            98_304 / num_envs
-        ),
-        "save_interval":         100,
-        "empirical_normalization": None,
-        "torch_compile_mode":    None,
-        "multi_gpu":             None,
-    }
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 def main():
@@ -128,18 +63,20 @@ def main():
 
     gs.init(logging_level="warning", backend=backend, performance_mode=True)
 
-    log_path = os.path.join("./logs", args.exp_name)
-    if os.path.exists(log_path) and not args.resume:
-        shutil.rmtree(log_path)
-    os.makedirs(log_path, exist_ok=True)
-    print(f"📂 Logging en: {log_path}")
+    # ── Logging (ScaffoldRL: delegado a run_logger) ────────────────────────
+    log_path = setup_log_dir(args.exp_name, resume=args.resume)
 
-    cfg = training_cfg(args.exp_name, args.max_iterations, args.num_envs)
-    pickle.dump(
-        [cfg],
-        open(os.path.join(log_path, "cfgs.pkl"), "wb"),
+    cfg = training_cfg(
+        exp_name        = args.exp_name,
+        max_iterations  = args.max_iterations,
+        num_envs        = args.num_envs,
+        record_interval = args.record_interval,
+        resume          = args.resume,
+        resume_path     = args.resume_path,
     )
+    save_cfg(cfg, log_path)
 
+    # ── Entorno ────────────────────────────────────────────────────────────
     env = BipedGaitTrainingEnv(
         num_envs=args.num_envs,
         headless=True,
@@ -160,16 +97,11 @@ def main():
     env.reset()
     env.cfg = {}  # type: ignore
 
-    # ── Entrenamiento ─────────────────────────────────────────────────────────
-    print("💪 Iniciando entrenamiento PPO con critic privilegiado...")
-    print(f"   num_envs        : {args.num_envs}")
-    print(f"   num_steps_per_env: {cfg['num_steps_per_env']}")
-    print(f"   max_iterations  : {args.max_iterations}")
-    print(f"   obs actor       : {cfg['obs_groups']['actor']}")
-    print(f"   obs critic      : {cfg['obs_groups']['critic']}")
+    # ── Entrenamiento ──────────────────────────────────────────────────────
+    print_run_summary(cfg, args.num_envs, args.max_iterations)
 
     runner = OnPolicyRunner(
-        env, #type: ignore
+        env,  # type: ignore
         copy.deepcopy(cfg),
         log_path,
         device=gs.device,  # type: ignore
