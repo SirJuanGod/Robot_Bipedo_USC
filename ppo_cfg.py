@@ -1,28 +1,5 @@
-"""
-ppo_cfg.py — Configuración del algoritmo PPO, redes actor/crítico y runner.
-
-ScaffoldRL: este módulo es responsable únicamente de devolver el dict de
-configuración que OnPolicyRunner (rsl-rl-lib) necesita para construir la
-política. No contiene lógica de entrenamiento ni de logging.
-"""
-
-
 def training_cfg(exp_name: str, max_iterations: int, num_envs: int, record_interval: int = 100,
                  resume: bool = False, resume_path: str | None = None) -> dict:
-    """
-    Retorna la configuración completa para OnPolicyRunner.
-
-    Args:
-        exp_name:        Nombre del experimento (se usa como subcarpeta de logs).
-        max_iterations:  Número total de iteraciones de entrenamiento PPO.
-        num_envs:        Número de entornos paralelos.
-        record_interval: Cada cuántas iteraciones se graba un video.
-        resume:          Si True, continúa desde un checkpoint existente.
-        resume_path:     Ruta explícita al checkpoint; None = más reciente.
-
-    Returns:
-        dict compatible con OnPolicyRunner de rsl-rl-lib >= 2.2.4.
-    """
     return {
         # ── Algoritmo PPO ───────────────────────────────────────────────────
         "algorithm": {

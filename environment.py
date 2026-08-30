@@ -21,13 +21,7 @@ INITIAL_BODY_POSITION        = [0.0, 0.0, HEIGHT_OFFSET]
 INITIAL_QUAT                 = [1.0, 0.0, 0.0, 0.0]
 CURRICULUM_CHECK_EVERY_STEPS = 50
 
-<<<<<<< HEAD
 # Valores de ruido sim2real para las observaciones del actor policy
-=======
-# --- NUEVA CONSTANTE: Dificultad del terreno ---
-TERRAIN_VERTICAL_SCALE       = 0.015  # 1.5 cm de irregularidad (súbelo gradualmente)
-
->>>>>>> Transfer-Learning-branch
 NOISE_SCALES = {
     "ang_vel": 0.05,
     "gravity":  0.05,
@@ -372,14 +366,11 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "weight": 1.0,
                     "fn": reward_alive_bonus,
                 },
-<<<<<<< HEAD
                 "upright_stability": {
                     "weight": 1.0, # MODIFICADO: Relajado de 1.5 a 1.0
                     "fn": reward_upright_stability,
                     "params": {"entity_manager": self.robot_manager},
                 },
-=======
->>>>>>> Transfer-Learning-branch
                 "tracking_lin_vel": {
                     "weight": 1.5,
                     "fn": reward_tracking_lin_vel,
@@ -405,11 +396,7 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "params": {"contact_manager": self.feet_contact_manager},
                 },
                 "foot_height_reward": {
-<<<<<<< HEAD
                     "weight": 1.2, # MODIFICADO: Aumentado de 0.5 a 1.2
-=======
-                    "weight": 1.2, 
->>>>>>> Transfer-Learning-branch
                     "fn": self.gait_command_manager.foot_height_reward,
                 },
 
@@ -448,28 +435,6 @@ class BipedGaitTrainingEnv(ManagedEnvironment):
                     "fn": reward_action_rate_penalty,
                     "params": {"max_val": 2.0},
                 },
-<<<<<<< HEAD
-                "energy": {
-                    "weight": -0.4,
-                    "fn": reward_energy_penalty,
-                    "params": {"max_val": 1.5},
-                },
-                "bad_contact": {
-                    "weight": -0.8,
-                    "fn": reward_contact_binary_penalty,
-                    "params": {"contact_manager": self.knee_contact_manager},
-                },
-                "base_height": {
-                    "weight": -1.2,
-                    "fn": reward_base_height,
-                    "params": {
-                        "entity_manager": self.robot_manager,
-                        "target_height":  HEIGHT_OFFSET-0.02,
-                        "max_val":        0.05,
-                    },
-                },
-=======
->>>>>>> Transfer-Learning-branch
                 "dof_pos_deviation": {
                     "weight": -0.4,  # RewardArchitect: bajado de -0.5; reduce duplicidad con energy
                     "fn": reward_dof_pos_deviation,
